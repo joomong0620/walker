@@ -9,7 +9,14 @@ from utils import sqlalchemy_to_dict
 from routers.activity import router as activity_router
 from routers.heartrate import router as heartrate_router
 from routers.gps import router as gps_router
+from routers.obstacle import router as obstacle_router
+from routers.pothole import router as pothole_router
+from routers.accelerometer import router as accelerometer_router
 from fastapi.middleware.cors import CORSMiddleware
+from routers.obstacle_ws_router import obstacle_ws_router 
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
+from routers.obstacle import router as obstacle_router
 # from io import BytesIO
 # from PIL import Image
 # from ai import predict_image  # YOLO 함수 불러오기
@@ -32,6 +39,19 @@ app.add_middleware(
     allow_methods=["*"],  # 모든 HTTP 메서드 허용
     allow_headers=["*"],  # 모든 HTTP 헤더 허용
 )
+# WebSocket 엔드포인트
+@app.websocket("/ws/test")
+async def websocket_test(websocket: WebSocket):
+    await websocket.accept()
+    print("🔌 WebSocket 연결됨")
+
+    try:
+        while True:
+            data = await websocket.receive_text()
+            print("📩 받은 메시지:", data)
+            await websocket.send_text(f"💬 서버가 받은 메시지: {data}")
+    except WebSocketDisconnect:
+        print("❌ 연결 끊김")
 
 # 의존성: 데이터베이스 세션
 async def get_db() -> AsyncSession:
@@ -235,3 +255,8 @@ async def delete_guardian(guardian_id: str, db: AsyncSession = Depends(get_db)):
 app.include_router(activity_router, prefix="/api", tags=["Activity Time"])
 app.include_router(heartrate_router, prefix="/api", tags=["heartrate"]) 
 app.include_router(gps_router, prefix="/api", tags=["gps"]) 
+app.include_router(obstacle_router, prefix="/api", tags=["obstacle"]) 
+app.include_router(pothole_router, prefix="/api", tags=["pothole"])
+app.include_router(accelerometer_router, prefix="/api", tags=["accelerometer"])
+app.include_router(obstacle_router, prefix="/api", tags=["latest_obstacle"])
+#app.include_router(pothole_router, prefix="/api", tags=["upload"])
