@@ -17,7 +17,7 @@ app = FastAPI()
 router = APIRouter()
 
 # ✅ YOLO 모델 로드
-model = YOLO("pothole_best_20250427-191441.pt")
+model = YOLO("lane_seg_best.pt")
 model.fuse()
 
 # ✅ 스트리밍 URL
