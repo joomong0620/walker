@@ -17,6 +17,8 @@ from routers.obstacle_ws_router import obstacle_ws_router
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from routers.obstacle import router as obstacle_router
+from routers.profile import router as profile_router
+
 # from io import BytesIO
 # from PIL import Image
 # from ai import predict_image  # YOLO 함수 불러오기
@@ -259,4 +261,5 @@ app.include_router(obstacle_router, prefix="/api", tags=["obstacle"])
 app.include_router(pothole_router, prefix="/api", tags=["pothole"])
 app.include_router(accelerometer_router, prefix="/api", tags=["accelerometer"])
 app.include_router(obstacle_router, prefix="/api", tags=["latest_obstacle"])
+app.include_router(profile_router, prefix="/api", tags=["profile"])
 #app.include_router(pothole_router, prefix="/api", tags=["upload"])
