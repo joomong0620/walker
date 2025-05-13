@@ -83,7 +83,7 @@ async def detect_from_queue(user_id: str, walker_id: str, db_session_maker):
         start_time = asyncio.get_event_loop().time()
 
         try:
-            frame = frame_queue.get(timeout=5)  # 프레임 기다리기 (최대 5초)
+            frame = frame_queue.get(timeout=5)
         except queue.Empty:
             print("⏳ 프레임 없음")
             await asyncio.sleep(0.1)
@@ -100,35 +100,34 @@ async def detect_from_queue(user_id: str, walker_id: str, db_session_maker):
         print(f"🚨 감지 결과 (0.85 이상): {is_detected}")
 
         labels = []
-        if is_detected:
-            for box in high_conf_boxes:
-                class_id = int(box.cls[0])
-                label = model.names[class_id]
-                labels.append(label)
+        for box in high_conf_boxes:
+            class_id = int(box.cls[0])
+            label = model.names[class_id]
+            labels.append(label)
 
-            label_str = str(labels)
-            detection_time = datetime.utcnow()
-            obstacle_id = f"stream_{uuid.uuid4()}"
+        label_str = str(labels) if labels else "[]"
+        detection_time = datetime.utcnow()
+        obstacle_id = f"stream_{uuid.uuid4()}"
 
-            # ✅ DB 저장
-            db_start = asyncio.get_event_loop().time()
-            async with db_session_maker() as session:
-                await save_to_db_safe(
-                    session,
-                    obstacle_id,
-                    user_id,
-                    label_str,
-                    detection_time,
-                    walker_id,
-                    is_detected
-                )
-            db_elapsed = asyncio.get_event_loop().time() - db_start
-            print(f"💾 DB 저장 시간: {db_elapsed:.3f}s")
+        # ✅ 감지 여부와 관계없이 무조건 DB 저장
+        db_start = asyncio.get_event_loop().time()
+        async with db_session_maker() as session:
+            await save_to_db_safe(
+                session,
+                obstacle_id,
+                user_id,
+                label_str,
+                detection_time,
+                walker_id,
+                is_detected
+            )
+        db_elapsed = asyncio.get_event_loop().time() - db_start
+        print(f"💾 DB 저장 시간: {db_elapsed:.3f}s")
 
-        # 루프 유지 시간
         total_elapsed = asyncio.get_event_loop().time() - start_time
         print(f"🔁 전체 루프 시간: {total_elapsed:.3f}s")
-        await asyncio.sleep(max(0, 1.0 - total_elapsed))  # 1초 간격
+        await asyncio.sleep(max(0, 1.0 - total_elapsed))
+
 
 # ✅ 감지 시작 API
 @router.post("/obstacle/stream/start")
@@ -172,7 +171,6 @@ async def get_latest_obstacle_data(
     except Exception as e:
         return {"error": str(e)}
     
-# ✅ 이미지 업로드 감지 API (추가)
 @router.post("/obstacle/upload")
 async def upload_obstacle_image(
     file: UploadFile = File(...),
@@ -181,40 +179,36 @@ async def upload_obstacle_image(
     db: AsyncSession = Depends(get_db)
 ):
     try:
-        # 파일 읽기
         image_bytes = await file.read()
         np_arr = np.frombuffer(image_bytes, np.uint8)
         frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
 
-        # YOLO 감지
         results = model.predict(frame, conf=0.3, imgsz=224, device="cpu", stream=False)
         boxes = results[0].boxes
-        high_conf_boxes = [box for box in boxes if box.conf[0] >= 0.85]
-
+        high_conf_boxes = [box for box in boxes if box.conf[0] >= 0.50]
         is_detected = 1 if len(high_conf_boxes) > 0 else 0
-        print(f"🚨 (업로드) 감지 결과 (0.85 이상): {is_detected}")
+        print(f"🚨 (업로드) 감지 결과 (0.50 이상): {is_detected}")
 
-        if is_detected:
-            labels = []
-            for box in high_conf_boxes:
-                class_id = int(box.cls[0])
-                label = model.names[class_id]
-                labels.append(label)
+        labels = []
+        for box in high_conf_boxes:
+            class_id = int(box.cls[0])
+            label = model.names[class_id]
+            labels.append(label)
 
-            label_str = str(labels)
-            detection_time = datetime.utcnow()
-            obstacle_id = f"upload_{uuid.uuid4()}"
+        label_str = str(labels) if labels else "[]"
+        detection_time = datetime.utcnow()
+        obstacle_id = f"upload_{uuid.uuid4()}"
 
-            # DB 저장
-            await save_to_db_safe(
-                session=db,
-                obstacle_id=obstacle_id,
-                user_id=user_id,
-                obstacle_type=label_str,
-                detection_time=detection_time,
-                walker_id=walker_id,
-                is_detected=is_detected
-            )
+        # ✅ 감지 여부와 관계없이 무조건 DB 저장
+        await save_to_db_safe(
+            session=db,
+            obstacle_id=obstacle_id,
+            user_id=user_id,
+            obstacle_type=label_str,
+            detection_time=detection_time,
+            walker_id=walker_id,
+            is_detected=is_detected
+        )
 
         return {"message": "업로드 이미지 처리 완료", "is_detected": is_detected}
 
