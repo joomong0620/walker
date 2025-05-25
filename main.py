@@ -18,13 +18,14 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from routers.obstacle import router as obstacle_router
 from routers.profile import router as profile_router
+from routers.report import router as report_router
 
 # from io import BytesIO
 # from PIL import Image
 # from ai import predict_image  # YOLO 함수 불러오기
 
 # PostgreSQL 연결 설정
-DATABASE_URL = "postgresql+asyncpg://postgres:1514@localhost/walker"  # 사용자 정보 수정 필요
+DATABASE_URL = "postgresql+asyncpg://postgres:1514@localhost/walker" 
 
 # SQLAlchemy 비동기 엔진 및 세션 설정
 engine = create_async_engine(DATABASE_URL, echo=True)
@@ -36,11 +37,16 @@ app = FastAPI()
 # CORS 설정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],  # 허용할 프론트엔드 도메인
+    allow_origins=[
+        "http://localhost:5173",              # 로컬 개발용
+        "http://127.0.0.1:5173",              # 로컬 개발용
+        "https://helping-chair.vercel.app"    # Vercel 배포 프론트 주소
+    ],
     allow_credentials=True,
-    allow_methods=["*"],  # 모든 HTTP 메서드 허용
-    allow_headers=["*"],  # 모든 HTTP 헤더 허용
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
+
 # WebSocket 엔드포인트
 @app.websocket("/ws/test")
 async def websocket_test(websocket: WebSocket):
@@ -262,4 +268,5 @@ app.include_router(pothole_router, prefix="/api", tags=["pothole"])
 app.include_router(accelerometer_router, prefix="/api", tags=["accelerometer"])
 app.include_router(obstacle_router, prefix="/api", tags=["latest_obstacle"])
 app.include_router(profile_router, prefix="/api", tags=["profile"])
+app.include_router(report_router, prefix="/api", tags=["report"])
 #app.include_router(pothole_router, prefix="/api", tags=["upload"])
