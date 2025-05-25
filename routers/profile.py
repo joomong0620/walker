@@ -1,51 +1,36 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
+from sqlalchemy import select
 from database import get_db
 from model.models import User, Guardian
-from pydantic import BaseModel
 
 router = APIRouter()
 
-class ProfileResponse(BaseModel):
-    name: str
-    role: str
-    birth: str
-    contact: str
+@router.get("/profile/{id}")
+async def get_profile(id: str, db: AsyncSession = Depends(get_db)):
+    # 사용자 조회 시도
+    result = await db.execute(select(User).where(User.user_id == id))
+    user = result.scalar_one_or_none()
+    if user:
+        return {
+            "id": user.user_id,
+            "name": user.name,
+            "contact": user.contact,
+            "birth": user.birth,
+            "user_type": "user"
+        }
 
-    class Config:
-        orm_mode = True
+    # 보호자 조회 시도
+    result = await db.execute(select(Guardian).where(Guardian.guardian_id == id))
+    guardian = result.scalar_one_or_none()
+    if guardian:
+        return {
+            "id": guardian.guardian_id,
+            "name": guardian.name,
+            "contact": guardian.contact,
+            "birth": guardian.birth,
+            "user_type": "guardian"
+        }
 
-@router.get("/profile/", response_model=ProfileResponse)
-async def get_profile(id: str, role: str, db: AsyncSession = Depends(get_db)):
-    """
-    현재 로그인된 사용자 또는 보호자의 정보를 반환합니다.
-    - id: user_id 또는 guardian_id
-    - role: 'user' 또는 'guardian'
-    """
-    if role == "user":
-        result = await db.execute(select(User).where(User.user_id == id))
-        user = result.scalar()
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-        return ProfileResponse(
-            name=user.name,
-            role="사용자",
-            birth=user.birth,
-            contact=user.contact
-        )
-
-    elif role == "guardian":
-        result = await db.execute(select(Guardian).where(Guardian.guardian_id == id))
-        guardian = result.scalar()
-        if not guardian:
-            raise HTTPException(status_code=404, detail="Guardian not found")
-        return ProfileResponse(
-            name=guardian.name,
-            role="보호자",
-            birth=guardian.birth,
-            contact=guardian.contact
-        )
-
-    else:
-        raise HTTPException(status_code=400, detail="Invalid role (must be 'user' or 'guardian')")
+    # 둘 다 없으면 404
+    raise HTTPException(status_code=404, detail="User or Guardian not found")
