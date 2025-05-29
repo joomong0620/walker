@@ -1,0 +1,6 @@
+build:
+  installCommand: pip install -r requirements.txt
+  startCommand: uvicorn main:app --host 0.0.0.0 --port 8000
+  aptDependencies:
+    - libgl1-mesa-glx
+    - libglib2.0-0
