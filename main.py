@@ -44,7 +44,6 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",              # 로컬 개발용
         "http://127.0.0.1:5173",              # 로컬 개발용
-        "https://helping-chair.vercel.app"    # Vercel 배포 프론트 주소
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -273,4 +272,11 @@ app.include_router(accelerometer_router, prefix="/api", tags=["accelerometer"])
 app.include_router(obstacle_router, prefix="/api", tags=["latest_obstacle"])
 app.include_router(profile_router, prefix="/api", tags=["profile"])
 app.include_router(report_router, prefix="/api", tags=["report"])
-#app.include_router(pothole_router, prefix="/api", tags=["upload"])
+#app.include_router(pothole_router, prefix="/api", tags=["upload"])# 기존 코드 맨 아래에 추가
+
+if __name__ == "__main__":
+    import uvicorn
+    import os
+    
+    port = int(os.environ.get("PORT", 8000))  # Railway가 제공하는 포트 사용
+    uvicorn.run(app, host="0.0.0.0", port=port)
