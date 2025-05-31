@@ -24,8 +24,12 @@ from routers.report import router as report_router
 # from PIL import Image
 # from ai import predict_image  # YOLO 함수 불러오기
 
-# PostgreSQL 연결 설정
-DATABASE_URL = "postgresql+asyncpg://postgres:1514@localhost/walker" 
+import os
+from dotenv import load_dotenv
+
+load_dotenv()  # .env 파일 읽기
+
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 # SQLAlchemy 비동기 엔진 및 세션 설정
 engine = create_async_engine(DATABASE_URL, echo=True)
