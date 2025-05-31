@@ -6,7 +6,7 @@ RUN apt-get update && apt-get install -y \
   gcc \
   g++ \
   cmake \
-  libgl1-mesa-glx \
+  libgl1 \
   libglib2.0-0 \
   libsm6 \
   libxext6 \
@@ -29,7 +29,7 @@ FROM python:3.11-slim
 
 # 런타임 라이브러리만 설치
 RUN apt-get update && apt-get install -y \
-  libgl1-mesa-glx \
+  libgl1 \
   libglib2.0-0 \
   libsm6 \
   libxext6 \
