@@ -67,10 +67,9 @@ tests/
 test_*/
 *_test.py
 
-# 개발용 파일
+# 개발용 파일 (Dockerfile 제거)
 docker-compose.yml
 Dockerfile.dev
-.dockerignore
 
 # 환경 변수 파일 (보안)
 .env
