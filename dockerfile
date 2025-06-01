@@ -1,5 +1,5 @@
-# Railway용 Ubuntu 기반 FastAPI Dockerfile
-FROM ubuntu:22.04
+# Railway용 Ubuntu 24.04 기반 FastAPI Dockerfile
+FROM ubuntu:24.04
 
 # 환경 변수 설정
 ENV DEBIAN_FRONTEND=noninteractive
@@ -17,11 +17,10 @@ RUN apt-get update && apt-get install -y \
   libglib2.0-0 \
   && rm -rf /var/lib/apt/lists/*
 
-
 # Python 심볼릭 링크
 RUN ln -s /usr/bin/python3 /usr/bin/python
 
-# 작업 디렉토리
+# 작업 디렉토리 설정
 WORKDIR /app
 
 # 의존성 설치
@@ -35,4 +34,4 @@ COPY . .
 EXPOSE $PORT
 
 # Railway용 시작 명령
-CMD uvicorn main:app --host 0.0.0.0 --port $PORT
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "$PORT"]
