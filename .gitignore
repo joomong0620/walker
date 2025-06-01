@@ -1,2 +1,6 @@
-__pycache__
-.env
+venv/
+__pycache__/
+*.pyc
+*.pkl
+*.h5
+uploaded_audio/
