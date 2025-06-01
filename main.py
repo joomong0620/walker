@@ -1,3 +1,7 @@
+import os
+os.environ['OPENCV_IO_ENABLE_OPENEXR'] = '1'
+os.environ['QT_QPA_PLATFORM'] = 'offscreen'
+os.environ['DISPLAY'] = ':99'
 from fastapi import FastAPI, Depends, HTTPException, File, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker

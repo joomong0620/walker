@@ -10,7 +10,14 @@ ENV PYTHONDONTWRITEBYTECODE=1
 RUN apt-get update && apt-get install -y \
   libgl1-mesa-glx \
   libglib2.0-0 \
+  libsm6 \
+  libxext6 \
+  libxrender-dev \
+  libgomp1 \
   && rm -rf /var/lib/apt/lists/*
+
+# Alpine 기반이라면
+RUN apk add --no-cache mesa-gl glib libsm libxext libxrender
 
 RUN apt-get update && apt-get install -y libegl1
 # Python 심볼릭 링크
