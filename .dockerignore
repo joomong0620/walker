@@ -1,11 +1,77 @@
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
-env/
-venv/
-.env
+# Git 관련
 .git
 .gitignore
+.github/
+
+# Python 관련
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# 가상환경
+venv/
+env/
+ENV/
+.venv/
+.env/
+
+# IDE 관련
 .vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 로그 파일
+*.log
+logs/
+
+# 데이터베이스
+*.db
+*.sqlite3
+
+# 캐시 파일
+.cache/
+.pytest_cache/
+
+# 임시 파일
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+
+# 문서
+README.md
+*.md
+docs/
+
+# 테스트 관련
+tests/
+test_*/
+*_test.py
+
+# 개발용 파일 (Dockerfile 제거)
+docker-compose.yml
+Dockerfile.dev
+
+# 환경 변수 파일 (보안)
+.env
+.env.local
+.env.production
