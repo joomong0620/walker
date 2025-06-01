@@ -1,60 +1,22 @@
-# to build this docker image:
-#   docker build -f Dockerfile.opencv-ubuntu-24.04 -t ghcr.io/hybridgroup/opencv:4.11.0-ubuntu-24.04 .
-#   docker build --build-arg OPENCV_VERSION="4.x" --build-arg OPENCV_FILE="https://github.com/opencv/opencv/archive/refs/heads/4.x.zip" --build-arg OPENCV_CONTRIB_FILE="https://github.com/opencv/opencv_contrib/archive/refs/heads/4.x.zip" -f Dockerfile.opencv-ubuntu-20.04 -t ghcr.io/hybridgroup/opencv:4.11.0-dev-ubuntu-20.04 .
-FROM ubuntu:24.04 AS opencv-base
-LABEL maintainer="hybridgroup"
+FROM python:3.12
 
-ENV TZ=Europe/Madrid
-RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-  tzdata git build-essential cmake pkg-config wget unzip libgtk2.0-dev \
-  curl ca-certificates libcurl4-openssl-dev libssl-dev \
-  libavcodec-dev libavformat-dev libswscale-dev libtbbmalloc2 libtbb-dev \
-  libharfbuzz-dev libfreetype6-dev \
-  libjpeg-turbo8-dev libpng-dev libtiff-dev libdc1394-dev nasm && \
+RUN apt-get update && \
+  apt-get install -y freetds-dev libssl-dev && \
   rm -rf /var/lib/apt/lists/*
 
-ARG OPENCV_VERSION="4.11.0"
-ENV OPENCV_VERSION $OPENCV_VERSION
+ENV LDFLAGS="-L/usr/lib/x86_64-linux-gnu -L/usr/lib/i386-linux-gnu"
+ENV CFLAGS="-I/usr/include"
 
-ARG OPENCV_FILE="https://github.com/opencv/opencv/archive/${OPENCV_VERSION}.zip"
-ENV OPENCV_FILE $OPENCV_FILE
+WORKDIR /app
+COPY requirements.txt .
+COPY . .
 
-ARG OPENCV_CONTRIB_FILE="https://github.com/opencv/opencv_contrib/archive/${OPENCV_VERSION}.zip"
-ENV OPENCV_CONTRIB_FILE $OPENCV_CONTRIB_FILE
+RUN apt-get update && \
+  apt-get install -y freetds-dev libssl-dev && \
+  rm -rf /var/lib/apt/lists/*
 
-RUN curl -Lo opencv.zip ${OPENCV_FILE} && \
-  unzip -q opencv.zip && \
-  curl -Lo opencv_contrib.zip ${OPENCV_CONTRIB_FILE} && \
-  unzip -q opencv_contrib.zip && \
-  rm opencv.zip opencv_contrib.zip && \
-  cd opencv-${OPENCV_VERSION} && \
-  mkdir build && cd build && \
-  cmake -D CMAKE_BUILD_TYPE=RELEASE \
-  -D WITH_IPP=OFF \
-  -D WITH_OPENGL=OFF \
-  -D WITH_QT=OFF \
-  -D WITH_FREETYPE=ON \
-  -D CMAKE_INSTALL_PREFIX=/usr/local \
-  -D OPENCV_EXTRA_MODULES_PATH=../../opencv_contrib-${OPENCV_VERSION}/modules \
-  -D OPENCV_ENABLE_NONFREE=ON \
-  -D WITH_JASPER=OFF \
-  -D WITH_TBB=ON \
-  -D BUILD_JPEG=ON \
-  -D WITH_SIMD=ON \
-  -D ENABLE_LIBJPEG_TURBO_SIMD=ON \
-  -D BUILD_DOCS=OFF \
-  -D BUILD_EXAMPLES=OFF \
-  -D BUILD_TESTS=OFF \
-  -D BUILD_PERF_TESTS=ON \
-  -D BUILD_opencv_java=NO \
-  -D BUILD_opencv_python=NO \
-  -D BUILD_opencv_python2=NO \
-  -D BUILD_opencv_python3=NO \
-  -D OPENCV_GENERATE_PKGCONFIG=ON .. && \
-  make -j $(nproc --all) && \
-  make preinstall && make install && ldconfig && \
-  cd / && rm -rf opencv*
+RUN pip install --no-cache-dir -r requirements.txt
 
-CMD ["opencv_version", "-b"]
+EXPOSE 8000
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0"]
