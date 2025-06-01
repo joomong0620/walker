@@ -46,16 +46,6 @@ class Guardian(Base):
     birth = Column(String(25))
     user_id = Column(String(100))
 
-# # Healthcare 테이블
-# class Healthcare(Base):
-#     __tablename__ = "healthcare"
-#     healthcare_id = Column(String(100), primary_key=True)
-#     heartrate = Column(Integer)
-#     activity_time = Column(Integer)
-#     calory = Column(Float)
-#     travel_distance = Column(String(25))
-#     user_id = Column(String(100))
-#     # walker_id = Column(String(100))
 
 # Walkers 테이블
 class Walker(Base):
