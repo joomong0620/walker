@@ -8,15 +8,11 @@ ENV PYTHONDONTWRITEBYTECODE=1
 
 # 시스템 패키지 설치 (libgl1 포함)
 RUN apt-get update && apt-get install -y \
-  python3 \
-  python3-pip \
-  python3-dev \
-  build-essential \
-  curl \
-  libgl1 \
+  libgl1-mesa-glx \
   libglib2.0-0 \
   && rm -rf /var/lib/apt/lists/*
 
+RUN apt-get update && apt-get install -y libegl1
 # Python 심볼릭 링크
 RUN ln -s /usr/bin/python3 /usr/bin/python
 
