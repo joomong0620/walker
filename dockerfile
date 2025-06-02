@@ -1,14 +1,12 @@
-# Ubuntu 이미지를 기반으로 합니다.
+# Ubuntu 22.04 기반 이미지
 FROM ubuntu:22.04
 
-# 필요한 패키지들을 설치합니다.
-# python3.12, pip, virtualenv, OpenCV 관련 라이브러리 등을 포함합니다.
+# 필수 패키지 설치 (OpenCV 관련 포함)
 RUN apt-get update && \
   apt-get install -y --no-install-recommends \
   python3.12 \
   python3.12-dev \
   python3-pip \
-  virtualenv \
   libgl1-mesa-glx \
   libglib2.0-0 \
   libsm6 \
@@ -25,21 +23,22 @@ RUN apt-get update && \
   && \
   rm -rf /var/lib/apt/lists/*
 
-# Python 가상 환경을 설정합니다.
-RUN virtualenv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
+# python3.12을 기본 python으로 설정 (필수!)
+RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.12 1
 
-# Python 패키지들을 설치합니다.
+# 작업 디렉토리 설정
 WORKDIR /app
+
+# requirements 복사 및 설치
 COPY requirements.txt .
-RUN pip install --upgrade pip
-RUN pip install -r requirements.txt
+RUN python -m pip install --upgrade pip
+RUN python -m pip install --no-cache-dir -r requirements.txt
 
-# 애플리케이션 코드를 복사합니다.
-COPY . /app
+# 앱 코드 복사
+COPY . .
 
-# 사용할 포트를 노출합니다.
+# 포트 오픈
 EXPOSE 8000
 
-# 실행 명령어를 설정합니다.
-CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# 실행 명령어 설정 (환경변수 PORT 없으면 8000)
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "${PORT:-8000}"]
