@@ -1,6 +1,7 @@
 # Start with a Python base image
 FROM python:3.12-slim
-
+RUN pip install opencv-python
+RUN apt-get update && apt-get -y install libgl1-mesa-glx 
 # Install necessary system dependencies (including OpenCV's requirements)
 RUN apt-get update && \
   apt-get install -y \

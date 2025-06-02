@@ -10,7 +10,7 @@ import cv2
 import asyncio
 import threading
 import queue
-import np
+import numpy as np
 from fastapi import UploadFile, File
 
 router = APIRouter()
