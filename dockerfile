@@ -18,6 +18,8 @@ RUN apt-get update && \
   libjpeg-dev \
   libpng-dev \
   libtiff-dev && \
+  ffmpeg \
+  libxext6 \
   rm -rf /var/lib/apt/lists/*
 
 RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.12 1
