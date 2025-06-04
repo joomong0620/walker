@@ -20,9 +20,13 @@ RUN apt-get update && \
   libtiff-dev && \
   ffmpeg \
   libxext6 \
+  libgl1 \
+  libglib2.0-0 \
   rm -rf /var/lib/apt/lists/*
 
 RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.12 1
+RUN apt-get update
+RUN apt install -y libgl1-mesa-glx
 
 WORKDIR /app
 
