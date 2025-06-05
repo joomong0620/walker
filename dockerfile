@@ -2,6 +2,7 @@ FROM ubuntu:22.04
 
 # 시스템 패키지 설치
 RUN apt-get update && \
+  yum -y install mesa-libGL \
   apt-get upgrade \
   apt-get install -y libGL1 libsm6 libxext6 ffmpeg libfontconfig1 libxrender1 libgl1-mesa-glx && \
   apt-get clean && rm -rf /var/lib/apt/lists/*
