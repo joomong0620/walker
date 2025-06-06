@@ -19,8 +19,12 @@ from fastapi import UploadFile, File
 
 router = APIRouter()
 
-# YOLO 모델 로드 (경량) - 모델 obstacle_best.pt는 yolov8s.pt 모델이어서, ylolv8n.pt로 변경
-model = YOLO("obstacle_best.pt")
+# YOLO 모델 경로 절대 지정
+model_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "obstacle_best.pt"))
+print(f"📦 YOLO 모델 경로: {model_path}")
+
+# YOLO 모델 로드
+model = YOLO(model_path)
 model.fuse()
 
 # 스트리밍 URL

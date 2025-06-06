@@ -1,3 +1,7 @@
+import os
+# OpenCV headless 설정
+os.environ['OPENCV_IO_ENABLE_OPENEXR'] = '0'
+os.environ['QT_QPA_PLATFORM'] = 'offscreen'
 from fastapi import FastAPI, UploadFile, File, Depends, Query, APIRouter
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,17 +20,21 @@ import queue
 app = FastAPI()
 router = APIRouter()
 
-# ✅ YOLO 모델 로드
-model = YOLO("lane_seg_best.pt")
+# YOLO 모델 경로 절대 지정
+model_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "lane_seg_best.pt"))
+print(f"📦 YOLO 모델 경로: {model_path}")
+
+# YOLO 모델 로드
+model = YOLO(model_path)
 model.fuse()
 
-# ✅ 스트리밍 URL
+#  스트리밍 URL
 STREAM_URL = "http://192.168.0.142:5000/video"
 
-# ✅ 프레임 큐
+#  프레임 큐
 frame_queue = queue.Queue(maxsize=1)
 
-# ✅ 프레임 캡쳐 스레드
+#  프레임 캡쳐 스레드
 class FrameGrabber(threading.Thread):
     def __init__(self, stream_url):
         super().__init__()
