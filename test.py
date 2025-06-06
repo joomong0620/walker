@@ -1,2 +1,2 @@
-import sys
-sys.path.append('D:/fapi/yolov5')
+import os
+print(os.environ.get("DATABASE_URL"))

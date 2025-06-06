@@ -7,7 +7,7 @@ PYTHONUNBUFFERED = "1"
 nixpkgsArchive = "https://github.com/NixOS/nixpkgs/archive/refs/tags/23.05.tar.gz"
 
 [phases.setup]
-nixPkgs = ["python312", "gcc", "libGL", "glib", "glibc", "libGLU", "pkg-config"]
+nixPkgs = ["python312", "gcc", "libGL", "glib", "glibc", "libGLU", "pkg-config", "postgresql"]
 
 [phases.install]
 cmds = [
