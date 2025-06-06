@@ -1,9 +1,10 @@
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+import os
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
+from dotenv import load_dotenv
+load_dotenv()  # ✅ .env 파일에서 DATABASE_URL 읽어오기
 
-# PostgreSQL 연결 설정
-DATABASE_URL = "postgresql+asyncpg://postgres:1514@localhost/walker"
-
+DATABASE_URL = os.getenv("DATABASE_URL")
 # 비동기 엔진 생성
 engine = create_async_engine(DATABASE_URL, echo=True)
 
