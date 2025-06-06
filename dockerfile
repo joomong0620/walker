@@ -1,57 +1,43 @@
-<<<<<<< HEAD
+# Python 3.12 슬림 이미지 사용
 FROM python:3.12-slim
 
+# 작업 디렉토리 설정
 WORKDIR /app
 
-COPY requirements.txt .
-
-RUN apt-get update && apt-get install -y libglib2.0-0 libsm6 libxext6 libxrender-dev libgomp1 && \
-  apt-get clean && rm -rf /var/lib/apt/lists/*
-
-RUN pip install --no-cache-dir --upgrade pip && \
-  pip install --no-cache-dir -r requirements.txt
-
-COPY . .
-
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
-=======
-FROM ubuntu:22.04
-
-# 시스템 패키지 설치
-RUN apt-get update && \
-  apt-get install -y \
-  python3 \
-  python3-pip \
-  python3-dev \
+# 시스템 패키지 업데이트 및 OpenCV 의존성 설치
+RUN apt-get update && apt-get install -y \
+  libgl1-mesa-glx \
   libglib2.0-0 \
   libsm6 \
   libxext6 \
   libxrender-dev \
   libgomp1 \
-  && apt-get clean \
+  libgthread-2.0-0 \
+  libglib2.0-dev \
+  pkg-config \
+  gcc \
+  g++ \
   && rm -rf /var/lib/apt/lists/*
 
-# Python 심볼릭 링크
-RUN ln -s /usr/bin/python3 /usr/bin/python
-
-WORKDIR /app
-
-# requirements.txt 복사 및 설치
+# Python 의존성 파일 복사
 COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip && \
-  pip install --no-cache-dir -r requirements.txt
 
-# 앱 파일 복사
+# Python 패키지 설치
+RUN pip install --no-cache-dir -r requirements.txt
+
+# 애플리케이션 코드 복사
 COPY . .
 
-# 환경 변수
-ENV OPENCV_IO_ENABLE_OPENEXR=0
-ENV QT_QPA_PLATFORM=offscreen
+# boot.sh 스크립트에 실행 권한 부여
+RUN chmod +x boot.sh
+
+# 환경 변수 설정
 ENV PYTHONUNBUFFERED=1
+ENV QT_QPA_PLATFORM=offscreen
+ENV OPENCV_IO_ENABLE_OPENEXR=1
 
 # 포트 노출
 EXPOSE 8000
 
-# 앱 실행
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
->>>>>>> e609c7da0b403ff0856c67f4fd416438bd660dc4
+# 애플리케이션 시작
+CMD ["./boot.sh", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
