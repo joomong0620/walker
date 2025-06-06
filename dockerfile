@@ -2,7 +2,7 @@ FROM ubuntu:22.04
 
 # 시스템 패키지 설치
 RUN apt-get update && \
-  apt-get install -y python3-pip libgl1 && \
+  apt-get install -y python3-pip libgl1-mesa-glx && \
   apt-get clean && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
