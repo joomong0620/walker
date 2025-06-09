@@ -7,7 +7,7 @@ from model.models import AccelerometerData  # ← 모델 import
 from pydantic import BaseModel
 router = APIRouter()
 
-# ✅ 요청 모델 정의
+# 요청 모델 정의
 class AccelRequest(BaseModel):
     accel: float
     user_id: str
