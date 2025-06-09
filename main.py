@@ -2,143 +2,78 @@ import os
 os.environ['OPENCV_IO_ENABLE_OPENEXR'] = '1'
 os.environ['QT_QPA_PLATFORM'] = 'offscreen'
 os.environ['DISPLAY'] = ':99'
-
 from fastapi import FastAPI, Depends, HTTPException, File, UploadFile
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi import WebSocket, WebSocketDisconnect
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.future import select
+from sqlalchemy import update, delete
 from pydantic import BaseModel
-from contextlib import asynccontextmanager
-import logging
+from model.models import Base, User, Guardian
+from utils import sqlalchemy_to_dict
+from routers.activity import router as activity_router
+from routers.heartrate import router as heartrate_router
+from routers.gps import router as gps_router
+from routers.obstacle import router as obstacle_router
+from routers.pothole import router as pothole_router
+from routers.accelerometer import router as accelerometer_router
+from fastapi.middleware.cors import CORSMiddleware
+from routers.obstacle_ws_router import obstacle_ws_router 
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
+from routers.obstacle import router as obstacle_router
+from routers.profile import router as profile_router
+from routers.report import router as report_router
 
-# 로깅 설정
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# from io import BytesIO
+# from PIL import Image
+# from ai import predict_image  # YOLO 함수 불러오기
 
-# 환경 변수 로드
+import os
 from dotenv import load_dotenv
-load_dotenv()
+
+load_dotenv()  # .env 파일 읽기
 
 DATABASE_URL = os.getenv("DATABASE_URL")
-logger.info(f"Database URL: {'SET' if DATABASE_URL else 'NOT SET'}")
 
-# 데이터베이스 관련 임포트 (조건부)
-db_available = False
-if DATABASE_URL:
-    try:
-        from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-        from sqlalchemy.orm import sessionmaker
-        from sqlalchemy.future import select
-        from sqlalchemy import update, delete
-        from model.models import Base, User, Guardian
-        from utils import sqlalchemy_to_dict
-        
-        # SQLAlchemy 비동기 엔진 및 세션 설정
-        engine = create_async_engine(DATABASE_URL, echo=True)
-        async_session = sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
-        db_available = True
-        logger.info("Database connection configured successfully")
-    except Exception as e:
-        logger.error(f"Database setup failed: {e}")
-        db_available = False
-
-# 라우터 임포트 (선택적)
-try:
-    from routers.activity import router as activity_router
-    from routers.heartrate import router as heartrate_router
-    from routers.gps import router as gps_router
-    from routers.obstacle import router as obstacle_router
-    from routers.pothole import router as pothole_router
-    from routers.accelerometer import router as accelerometer_router
-    from routers.obstacle_ws_router import obstacle_ws_router 
-    from routers.profile import router as profile_router
-    from routers.report import router as report_router
-    routers_available = True
-except ImportError as e:
-    logger.warning(f"Some routers not available: {e}")
-    routers_available = False
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """안전한 애플리케이션 시작/종료 처리"""
-    logger.info("🚀 Starting Walker API...")
-    
-    # 데이터베이스 초기화 (사용 가능한 경우에만)
-    if db_available:
-        try:
-            async with engine.begin() as conn:
-                await conn.run_sync(Base.metadata.create_all)
-            logger.info("✅ Database tables created successfully")
-        except Exception as e:
-            logger.error(f"❌ Database initialization failed: {e}")
-    else:
-        logger.info("⚠️ Running without database")
-    
-    logger.info("✅ Application startup completed")
-    yield
-    logger.info("🛑 Application shutdown")
+# SQLAlchemy 비동기 엔진 및 세션 설정
+engine = create_async_engine(DATABASE_URL, echo=True)
+async_session = sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
 
 # FastAPI 애플리케이션 생성
-app = FastAPI(
-    title="Walker API",
-    description="Walker 보행자 안전 시스템 API",
-    version="1.0.0",
-    lifespan=lifespan
-)
+app = FastAPI()
 
 # CORS 설정
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "*"  # 개발용 - 프로덕션에서는 구체적인 도메인 지정
+        "http://localhost:5173",              # 로컬 개발용
+        "http://127.0.0.1:5173",              # 로컬 개발용
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# 기본 라우트
-@app.get("/")
-async def root():
-    return {
-        "message": "Walker API is running!",
-        "status": "healthy",
-        "database": "connected" if db_available else "not configured",
-        "version": "1.0.0"
-    }
-
-@app.get("/health")
-async def health_check():
-    return {
-        "status": "healthy",
-        "database": db_available,
-        "timestamp": os.environ.get("RAILWAY_DEPLOYMENT_ID", "local")
-    }
-
-# WebSocket 테스트 엔드포인트
+# WebSocket 엔드포인트
 @app.websocket("/ws/test")
 async def websocket_test(websocket: WebSocket):
     await websocket.accept()
-    logger.info("🔌 WebSocket 연결됨")
+    print("🔌 WebSocket 연결됨")
 
     try:
         while True:
             data = await websocket.receive_text()
-            logger.info(f"📩 받은 메시지: {data}")
+            print("📩 받은 메시지:", data)
             await websocket.send_text(f"💬 서버가 받은 메시지: {data}")
     except WebSocketDisconnect:
-        logger.info("❌ WebSocket 연결 끊김")
+        print("❌ 연결 끊김")
 
-# 데이터베이스 의존성 (데이터베이스가 있는 경우에만)
-async def get_db():
-    if not db_available:
-        raise HTTPException(status_code=503, detail="Database not available")
-    
+# 의존성: 데이터베이스 세션
+async def get_db() -> AsyncSession:
     async with async_session() as session:
         yield session
 
-# Pydantic 모델들
+# Pydantic 모델 정의
 class UserCreate(BaseModel):
     user_id: str
     name: str
@@ -146,7 +81,7 @@ class UserCreate(BaseModel):
     birth: str
 
     class Config:
-        from_attributes = True  # Pydantic V2 호환
+        orm_mode = True
 
 class UserResponse(BaseModel):
     user_id: str
@@ -155,17 +90,89 @@ class UserResponse(BaseModel):
     birth: str
 
     class Config:
-        from_attributes = True
+        orm_mode = True
 
+# 애플리케이션 시작 시 데이터베이스 초기화
+@app.on_event("startup")
+async def on_startup():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+# 사용자 추가
+@app.post("/users/", response_model=UserResponse)
+async def create_user(user: UserCreate, db: AsyncSession = Depends(get_db)):
+    # 중복 검사
+    existing_user = await db.execute(select(User).where(User.user_id == user.user_id))
+    if existing_user.scalar():
+        raise HTTPException(status_code=400, detail="User already exists")
+
+    # 사용자 추가
+    new_user = User(user_id=user.user_id, name=user.name, contact=user.contact, birth=user.birth)
+    db.add(new_user)
+    await db.commit()
+    await db.refresh(new_user)
+    return new_user
+
+# 모든 사용자 조회
+@app.get("/users/", response_model=list[UserResponse])
+async def read_users(db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(User))
+    users = result.scalars().all()
+    return users
+
+# 특정 사용자 조회
+@app.get("/users/{user_id}", response_model=UserResponse)
+async def read_user(user_id: str, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(User).where(User.user_id == user_id))
+    user = result.scalar()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
+
+# 사용자 정보 수정
+@app.put("/users/{user_id}", response_model=UserResponse)
+async def update_user(user_id: str, user: UserCreate, db: AsyncSession = Depends(get_db)):
+    # 사용자 존재 여부 확인
+    result = await db.execute(select(User).where(User.user_id == user_id))
+    existing_user = result.scalar()
+    if not existing_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # 사용자 정보 수정
+    await db.execute(
+        update(User)
+        .where(User.user_id == user_id)
+        .values(name=user.name, contact=user.contact, birth=user.birth)
+    )
+    await db.commit()
+
+    # 수정된 사용자 반환
+    updated_user = await db.execute(select(User).where(User.user_id == user_id))
+    return updated_user.scalar()
+
+# 사용자 삭제
+@app.delete("/users/{user_id}", response_model=dict)
+async def delete_user(user_id: str, db: AsyncSession = Depends(get_db)):
+    # 사용자 존재 여부 확인
+    result = await db.execute(select(User).where(User.user_id == user_id))
+    user = result.scalar()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # 사용자 삭제
+    await db.execute(delete(User).where(User.user_id == user_id))
+    await db.commit()
+    return {"message": f"User {user_id} deleted successfully"}
+# Pydantic 모델 정의
 class GuardianCreate(BaseModel):
     guardian_id: str
     name: str
     contact: str
     birth: str
-    user_id: str
+    user_id: str  # ✅ 보호자가 연결될 사용자 ID
 
     class Config:
-        from_attributes = True
+        orm_mode = True
 
 class GuardianResponse(BaseModel):
     guardian_id: str
@@ -175,88 +182,102 @@ class GuardianResponse(BaseModel):
     user_id: str
 
     class Config:
-        from_attributes = True
+        orm_mode = True
 
-# 데이터베이스 라우트 (데이터베이스가 있는 경우에만 활성화)
-if db_available:
-    # 사용자 관련 엔드포인트
-    @app.post("/users/", response_model=UserResponse)
-    async def create_user(user: UserCreate, db: AsyncSession = Depends(get_db)):
-        existing_user = await db.execute(select(User).where(User.user_id == user.user_id))
-        if existing_user.scalar():
-            raise HTTPException(status_code=400, detail="User already exists")
+# 보호자 추가
+@app.post("/guardians/", response_model=GuardianResponse)
+async def create_guardian(guardian: GuardianCreate, db: AsyncSession = Depends(get_db)):
+    # 중복 검사
+    existing_guardian = await db.execute(select(Guardian).where(Guardian.guardian_id == guardian.guardian_id))
+    if existing_guardian.scalar():
+        raise HTTPException(status_code=400, detail="Guardian already exists")
 
-        new_user = User(user_id=user.user_id, name=user.name, contact=user.contact, birth=user.birth)
-        db.add(new_user)
-        await db.commit()
-        await db.refresh(new_user)
-        return new_user
+    # 보호자 추가
+    new_guardian = Guardian(
+        guardian_id=guardian.guardian_id,
+        name=guardian.name,
+        contact=guardian.contact,
+        birth=guardian.birth,
+        user_id=guardian.user_id
+    )
+    db.add(new_guardian)
+    await db.commit()
+    await db.refresh(new_guardian)
+    return new_guardian
 
-    @app.get("/users/", response_model=list[UserResponse])
-    async def read_users(db: AsyncSession = Depends(get_db)):
-        result = await db.execute(select(User))
-        users = result.scalars().all()
-        return users
+# 모든 보호자 조회
+@app.get("/guardians/", response_model=list[GuardianResponse])
+async def read_guardians(db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Guardian))
+    guardians = result.scalars().all()
+    return guardians
 
-    @app.get("/users/{user_id}", response_model=UserResponse)
-    async def read_user(user_id: str, db: AsyncSession = Depends(get_db)):
-        result = await db.execute(select(User).where(User.user_id == user_id))
-        user = result.scalar()
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-        return user
+# 특정 보호자 조회
+@app.get("/guardians/{guardian_id}", response_model=GuardianResponse)
+async def read_guardian(guardian_id: str, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Guardian).where(Guardian.guardian_id == guardian_id))
+    guardian = result.scalar()
+    if not guardian:
+        raise HTTPException(status_code=404, detail="Guardian not found")
+    return guardian
 
-    # 보호자 관련 엔드포인트
-    @app.post("/guardians/", response_model=GuardianResponse)
-    async def create_guardian(guardian: GuardianCreate, db: AsyncSession = Depends(get_db)):
-        existing_guardian = await db.execute(select(Guardian).where(Guardian.guardian_id == guardian.guardian_id))
-        if existing_guardian.scalar():
-            raise HTTPException(status_code=400, detail="Guardian already exists")
+# 특정 사용자(user_id)에 연결된 보호자 조회
+@app.get("/users/{user_id}/guardians", response_model=list[GuardianResponse])
+async def read_guardians_by_user(user_id: str, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Guardian).where(Guardian.user_id == user_id))
+    guardians = result.scalars().all()
+    return guardians
 
-        new_guardian = Guardian(
-            guardian_id=guardian.guardian_id,
-            name=guardian.name,
-            contact=guardian.contact,
-            birth=guardian.birth,
-            user_id=guardian.user_id
-        )
-        db.add(new_guardian)
-        await db.commit()
-        await db.refresh(new_guardian)
-        return new_guardian
+# 보호자 정보 수정
+@app.put("/guardians/{guardian_id}", response_model=GuardianResponse)
+async def update_guardian(guardian_id: str, guardian: GuardianCreate, db: AsyncSession = Depends(get_db)):
+    # 보호자 존재 여부 확인
+    result = await db.execute(select(Guardian).where(Guardian.guardian_id == guardian_id))
+    existing_guardian = result.scalar()
+    if not existing_guardian:
+        raise HTTPException(status_code=404, detail="Guardian not found")
 
-    @app.get("/guardians/", response_model=list[GuardianResponse])
-    async def read_guardians(db: AsyncSession = Depends(get_db)):
-        result = await db.execute(select(Guardian))
-        guardians = result.scalars().all()
-        return guardians
+    # 보호자 정보 수정
+    await db.execute(
+        update(Guardian)
+        .where(Guardian.guardian_id == guardian_id)
+        .values(name=guardian.name, contact=guardian.contact, birth=guardian.birth, user_id=guardian.user_id)
+    )
+    await db.commit()
 
-else:
-    # 데이터베이스 없이 실행될 때 대체 엔드포인트
-    @app.get("/users/")
-    async def read_users_fallback():
-        return {"message": "Database not configured. Please add PostgreSQL service in Railway."}
+    # 수정된 보호자 반환
+    updated_guardian = await db.execute(select(Guardian).where(Guardian.guardian_id == guardian_id))
+    return updated_guardian.scalar()
 
-    @app.get("/guardians/")
-    async def read_guardians_fallback():
-        return {"message": "Database not configured. Please add PostgreSQL service in Railway."}
+# 보호자 삭제
+@app.delete("/guardians/{guardian_id}", response_model=dict)
+async def delete_guardian(guardian_id: str, db: AsyncSession = Depends(get_db)):
+    # 보호자 존재 여부 확인
+    result = await db.execute(select(Guardian).where(Guardian.guardian_id == guardian_id))
+    guardian = result.scalar()
+    if not guardian:
+        raise HTTPException(status_code=404, detail="Guardian not found")
 
-# 라우터 등록 (사용 가능한 경우에만)
-if routers_available:
-    try:
-        app.include_router(activity_router, prefix="/api", tags=["Activity Time"])
-        app.include_router(heartrate_router, prefix="/api", tags=["heartrate"]) 
-        app.include_router(gps_router, prefix="/api", tags=["gps"]) 
-        app.include_router(obstacle_router, prefix="/api", tags=["obstacle"]) 
-        app.include_router(pothole_router, prefix="/api", tags=["pothole"])
-        app.include_router(accelerometer_router, prefix="/api", tags=["accelerometer"])
-        app.include_router(profile_router, prefix="/api", tags=["profile"])
-        app.include_router(report_router, prefix="/api", tags=["report"])
-        logger.info("✅ All routers registered successfully")
-    except Exception as e:
-        logger.error(f"❌ Router registration failed: {e}")
+    # 보호자 삭제
+    await db.execute(delete(Guardian).where(Guardian.guardian_id == guardian_id))
+    await db.commit()
+    return {"message": f"Guardian {guardian_id} deleted successfully"}
 
+
+# 라우터 등록
+app.include_router(activity_router, prefix="/api", tags=["Activity Time"])
+app.include_router(heartrate_router, prefix="/api", tags=["heartrate"]) 
+app.include_router(gps_router, prefix="/api", tags=["gps"]) 
+app.include_router(obstacle_router, prefix="/api", tags=["obstacle"]) 
+app.include_router(pothole_router, prefix="/api", tags=["pothole"])
+app.include_router(accelerometer_router, prefix="/api", tags=["accelerometer"])
+app.include_router(obstacle_router, prefix="/api", tags=["latest_obstacle"])
+app.include_router(profile_router, prefix="/api", tags=["profile"])
+app.include_router(report_router, prefix="/api", tags=["report"])
+#app.include_router(pothole_router, prefix="/api", tags=["upload"])
+
+# FastAPI 앱 실행
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
