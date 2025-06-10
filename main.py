@@ -46,7 +46,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",              # 로컬 개발용
-        "http://127.0.0.1:5173",              # 로컬 개발용
+        "http://127.0.0.1:5173",  
+        "https://helping-chair.vercel.app"            # 로컬 개발용
     ],
     allow_credentials=True,
     allow_methods=["*"],
