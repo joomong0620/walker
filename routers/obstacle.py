@@ -215,3 +215,13 @@ async def upload_obstacle_image(
 
     except Exception as e:
         return {"error": str(e)}
+    
+# ✅ 감지 중지 API
+@router.post("/obstacle/stream/stop")
+async def stop_detection():
+    global frame_grabber
+    if frame_grabber and frame_grabber.is_alive():
+        frame_grabber.stop()
+        return {"message": "스트리밍 감지를 중지했습니다."}
+    else:
+        return {"message": "감지 스레드가 실행 중이 아닙니다."}
