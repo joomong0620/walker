@@ -47,7 +47,8 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",              # 로컬 개발용
         "http://127.0.0.1:5173",  
-        "https://helping-chair.vercel.app"            # 로컬 개발용
+        "https://helping-chair.vercel.app"   
+        "http://192.168.99.71:5173"         # 로컬 개발용
     ],
     allow_credentials=True,
     allow_methods=["*"],
