@@ -1,0 +1,110 @@
+[33m9b52d16b[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m Initial commit
+[33m6b8fc1b9[m helping
+[33m88670ad9[m helping
+[33m32dd6c0d[m helping
+[33m42c44531[m helping
+[33m20eadf8f[m helping
+[33md2d8645b[m helping
+[33ma8cff906[m 0.5
+[33mf858ad67[m 0.5
+[33mbf492ae3[m stop add
+[33mbb8fc5af[m stop add
+[33m96725a7b[m stop add
+[33m94e30863[m cors
+[33m360ec98f[m re-add boot.sh with executable permission
+[33m4755d180[m Add accelerometer handler with vector magnitude calculation
+[33mf8340717[m Add accelerometer handler with vector magnitude calculation
+[33m11e09d14[m Add accelerometer handler with vector magnitude calculation
+[33me4f0893b[m Add accelerometer handler with vector magnitude calculation
+[33m69d2b7bf[m chore: trigger redeploy to apply chmod on boot.sh
+[33md91e1db4[m Fix DB URL newline issue
+[33ma55e331d[m Fix DB URL newline issue
+[33m0991e9c1[m Fix DB URL newline issue
+[33ma6920ad9[m Fix database connection and main.py
+[33m6ab0c692[m Fix database connection and main.py
+[33m1a8f1de1[m Initial commit
+[33mabf6d733[m  fix uvicorn entry point to main:app
+[33med38600e[m  fix uvicorn entry point to main:app
+[33mfcf27b3a[m  set execute permission for boot.sh
+[33ma0047751[m Merge remote changes
+[33mfb1ea8fa[m  remove opencv-python from ultralytics dependency
+[33me609c7da[m  remove opencv-python from ultralytics dependency
+[33m3db4db8c[m  remove opencv-python from ultralytics dependency
+[33mea527017[m  remove opencv-python from ultralytics dependency
+[33m326a4a97[m  remove opencv-python from ultralytics dependency
+[33m9b02b6f6[m  remove opencv-python from ultralytics dependency
+[33m7c4f4a36[m  remove opencv-python from ultralytics dependency
+[33md1574856[m  remove opencv-python from ultralytics dependency
+[33m1522f30e[m Fix OpenCV for headless deployment2
+[33m31005497[m Fix OpenCV for headless deployment2
+[33m6ccd1194[m Fix OpenCV for headless deployment
+[33m15baa2b6[m Fix OpenCV for headless deployment
+[33mfad418b6[m Fix OpenCV for headless deployment
+[33md92688ed[m Fix OpenCV for headless deployment
+[33m556811a1[m Fix OpenCV for headless deployment
+[33mb5356c39[m Fix OpenCV for headless deployment
+[33mce512d9c[m Fix OpenCV for headless deployment
+[33m220c081e[m Fix OpenCV for headless deployment
+[33meb920e44[m Fix OpenCV for headless deployment
+[33me1c02ef8[m Fix OpenCV for headless deployment
+[33m9c8103dc[m Fix OpenCV for headless deployment
+[33m1cacf7bc[m Fix OpenCV for headless deployment
+[33mbd9da627[m Fix OpenCV for headless deployment
+[33m46a5f336[m Fix OpenCV for headless deployment
+[33m01db5dd5[m Fix OpenCV for headless deployment
+[33m3b568477[m Fix OpenCV for headless deployment
+[33m45bd06dd[m Fix OpenCV for headless deployment
+[33mbd11c52f[m Fix OpenCV for headless deployment
+[33m07b295cf[m Fix OpenCV for headless deployment
+[33mc1797ea2[m Fix OpenCV for headless deployment
+[33m318ef9da[m Fix OpenCV for headless deployment
+[33m7da7a569[m Fix OpenCV for headless deployment
+[33mc998b788[m Fix OpenCV for headless deployment
+[33m44859f59[m Fix OpenCV for headless deployment
+[33m66a7a75b[m Add Railway configuration files
+[33m91530407[m Add Railway configuration files
+[33m724e6ea3[m Add .gitignore and update .dockerignore
+[33mcd7112ae[m Initial commit
+[33mc2d2ebb0[m Initial commit
+[33m35ba15e8[m Initial commit
+[33m00596e9e[m Initial commit
+[33mdc4ecf8e[m Initial commit
+[33m6b66e0ec[m Initial commit
+[33m252ed350[m Initial commit
+[33m56f9c2e9[m Initial commit
+[33mda491e62[m Initial commit
+[33mb2cff6eb[m Initial commit
+[33m147f483d[m Initial commit
+[33m161be4bb[m Initial commit
+[33m88ec70f2[m Initial commit
+[33m254c6309[m Initial commit
+[33mcc0af3aa[m Initial commit
+[33mec74ed24[m Initial commit
+[33ma4a635db[m Initial commit
+[33m9877b779[m Initial commit
+[33m042140c6[m Initial commit
+[33mb1edf6c4[m Initial commit
+[33m987ad060[m Initial commit
+[33m48d94303[m Initial commit
+[33m0d7156f6[m Initial commit
+[33ma2a20699[m Initial commit
+[33m1a5dce5b[m Initial commit
+[33me9f914a3[m Initial commit
+[33m465eea18[m 🔧 수정 내용 설명 예: fix Procfile command
+[33m2b75991b[m 🔧 수정 내용 설명 예: fix Procfile command
+[33me9d86d78[m 🔧 수정 내용 설명 예: fix Procfile command
+[33m1130411a[m fix: correct render.yaml indentation for apt dependencies
+[33m3825c9c8[m add render.yaml to force apt dependencies
+[33me0d70f18[m 🔧 수정 내용 설명 예: fix Procfile command
+[33mdd6a815a[m 🔧 수정 내용 설명 예: fix Procfile command
+[33mc49f3b81[m 🔧 수정 내용 설명 예: fix Procfile command
+[33m0706615e[m 🔧 수정 내용 설명 예: fix Procfile command
+[33md2fb7556[m 🔧 수정 내용 설명 예: fix Procfile command
+[33m60cf3898[m 🔧 수정 내용 설명 예: fix Procfile command
+[33m5fd728a9[m add: requirements.txt for deployment
+[33m03a30d58[m feat: update routers and add model files
+[33m7c173b11[m fix: update pothole and obstacle routers
+[33mfca9d425[m feat: update main.py and add profile router
+[33m77f6bd5d[m Initial commit: walker project
+[33md2b98544[m 🔄 update gps.py: add user-based GET + distance
+[33m3e4073dd[m 🚀 Initial commit: FastAPI project
