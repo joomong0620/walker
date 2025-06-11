@@ -1,6 +1,45 @@
+# 가상환경
 venv/
+ENV/
+.env/
+*.env
+
+# Python 캐시
 __pycache__/
-*.pyc
-*.pkl
+*.py[cod]
+*$py.class
+
+# 모델 / 학습 관련
 *.h5
+*.hdf5
+*.pkl
+*.p
+*.ckpt
+*.joblib
+*.tflite
+*.onnx
+
+# 데이터/업로드된 파일
 uploaded_audio/
+uploads/
+*.csv
+*.tsv
+*.json
+*.log
+
+# Jupyter / IPython
+.ipynb_checkpoints/
+
+# OS/편집기 임시 파일
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# VSCode 설정
+.vscode/
+
+# 빌드 결과물
+dist/
+build/
+*.egg-info/
