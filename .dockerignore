@@ -1,4 +1,4 @@
-# Git 관련Add commentMore actions
+# Git 관련
 .git
 .gitignore
 .github/
@@ -24,6 +24,13 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+
+# 모델 및 대형 파일
+model/
+uploads/
+*.pt
+*.onnx
+*.tflite
 
 # 가상환경
 venv/
