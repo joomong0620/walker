@@ -27,12 +27,14 @@ from routers.report import router as report_router
 # from PIL import Image
 # from ai import predict_image  # YOLO 함수 불러오기
 
-import os
 from dotenv import load_dotenv
+import os
 
-load_dotenv()  # .env 파일 읽기
+load_dotenv()  # .env에서 환경 변수 읽기
 
-DATABASE_URL = os.getenv("DATABASE_URL")
+DATABASE_URL = os.getenv("DATABASE_URL")  # ⛳ 이 한 줄만 유지! 하드코딩된 줄 삭제
+
+
 
 # SQLAlchemy 비동기 엔진 및 세션 설정
 engine = create_async_engine(DATABASE_URL, echo=True)
@@ -45,14 +47,17 @@ app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:5173",              # 로컬 개발용
-        "http://127.0.0.1:5173",  
+        "http://localhost:5175",              # 로컬 개발용
+        "http://127.0.0.1:5175",  
         "https://helping-chair.vercel.app",   
-        "http://192.0.0.2:5173",        # 로컬 개발용
+        "http://192.168.0.159:5175", 
+        "https://6909-14-42-86-124.ngrok-free.app",
+        "http://192.168.0.142"            # 로컬 개발용
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    methods=["GET", "POST", "PUT", "DELETE"],
 )
 
 # WebSocket 엔드포인트
