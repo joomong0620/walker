@@ -57,7 +57,6 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    methods=["GET", "POST", "PUT", "DELETE"],
 )
 
 # WebSocket 엔드포인트
