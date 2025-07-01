@@ -47,10 +47,10 @@ app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:5175",              # 로컬 개발용
-        "http://127.0.0.1:5175",  
+        "http://localhost:5176",              # 로컬 개발용
+        "http://127.0.0.1:5176",  
         "https://helping-chair.vercel.app",   
-        "http://192.168.0.159:5175", 
+        "http://192.168.0.159:5176", 
         "https://6909-14-42-86-124.ngrok-free.app",
         "http://192.168.0.142"            # 로컬 개발용
     ],
