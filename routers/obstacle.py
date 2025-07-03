@@ -233,9 +233,9 @@ async def upload_obstacle_image(
         # YOLO 감지
         results = model.predict(frame, conf=0.3, imgsz=224, device="cpu", stream=False)
         boxes = results[0].boxes
-        high_conf_boxes = [box for box in boxes if box.conf[0] >= 0.50]
+        high_conf_boxes = [box for box in boxes if box.conf[0] >= 0.7]
         is_detected = 1 if len(high_conf_boxes) > 0 else 0
-        logger.info(f"🚨 (업로드) 감지 결과 (0.50 이상): {is_detected}")
+        logger.info(f"🚨 (업로드) 감지 결과 (0.70 이상): {is_detected}")
 
         # 라벨 추출
         labels = []

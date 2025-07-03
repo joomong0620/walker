@@ -21,7 +21,7 @@ model = YOLO("lane_seg_best.pt")
 model.fuse()
 
 # ✅ 스트리밍 URL
-STREAM_URL = "http://192.168.0.142:5000/video"
+STREAM_URL = "http://192.168.0.142:5000/?action=stream"
 
 # ✅ 프레임 큐
 frame_queue = queue.Queue(maxsize=1)
