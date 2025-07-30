@@ -1,11 +1,13 @@
 from sqlalchemy import Column, DateTime, String, Integer, Float, TIMESTAMP
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Column, String, Integer, TIMESTAMP, ForeignKey
+from sqlalchemy import Column, String, Integer, TIMESTAMP, ForeignKey, Date
 from sqlalchemy.sql import func
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, String, Float, TIMESTAMP
 from sqlalchemy.sql import func
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import DateTime
+from sqlalchemy import Boolean
 
 Base = declarative_base()
 
@@ -64,7 +66,7 @@ class ObstacleData(Base):
 
     is_detected = Column(Integer)  # ✅ 이 줄이 반드시 있어야 해!
 
-    from sqlalchemy import DateTime
+ 
 
 # 활동 로그 테이블
 class Activity(Base):
@@ -93,9 +95,37 @@ class AccelerometerData(Base):
     __tablename__ = "accelerometer"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(String(100), ForeignKey("users.user_id"), nullable=False)     # 사용자 참조
-    walker_id = Column(String(100), ForeignKey("walkers.walker_id"), nullable=False)  # 워커 참조
+    user_id = Column(String(100), ForeignKey("users.user_id"), nullable=False)
+    walker_id = Column(String(100), ForeignKey("walkers.walker_id"), nullable=False)
 
-    accel_value = Column(Float, nullable=False)         # 가속도 값
-    is_moving = Column(Integer, default=0)              # 1: 움직임 있음 / 0: 없음 (선택 사항)
-    timestamp = Column(TIMESTAMP, default=func.now())   # 측정 시간
+    accel_value = Column(Float, nullable=False)
+    ax = Column(Float)  # ← 추가
+    ay = Column(Float)  # ← 추가
+    az = Column(Float)  # ← 추가
+
+    is_moving = Column(Integer, default=0)
+    pitch = Column(Float)
+    slope = Column(String(20))
+    timestamp = Column(TIMESTAMP, default=func.now())
+
+# ActivityDuration 테이블
+class ActivityDuration(Base):
+    __tablename__ = "activity_duration"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(String)
+    walker_id = Column(String)
+    date = Column(Date)
+    total_seconds = Column(Integer)  # 하루 누적 활동 시간 (초)
+
+
+
+# 낙상 알림 테이블
+class FallAlert(Base):
+    __tablename__ = "fall_alerts"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String(100), ForeignKey("users.user_id"), nullable=False)
+    walker_id = Column(String(100), ForeignKey("walkers.walker_id"), nullable=False)
+    timestamp = Column(DateTime, default=func.now())
+    resolved = Column(Boolean, default=False)
+    resolved_at = Column(DateTime, nullable=True)

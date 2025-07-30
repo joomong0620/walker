@@ -22,18 +22,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from routers.obstacle import router as obstacle_router
 from routers.profile import router as profile_router
 from routers.report import router as report_router
+from routers.fall_alert import router as fall_alert_router
 
 # from io import BytesIO
 # from PIL import Image
 # from ai import predict_image  # YOLO 함수 불러오기
 
-from dotenv import load_dotenv
 import os
 
-load_dotenv()  # .env에서 환경 변수 읽기
 
-DATABASE_URL = os.getenv("DATABASE_URL")  # ⛳ 이 한 줄만 유지! 하드코딩된 줄 삭제
-
+DATABASE_URL = "postgresql+asyncpg://postgres:1514@localhost:5432/walker"
 
 
 # SQLAlchemy 비동기 엔진 및 세션 설정
@@ -47,10 +45,10 @@ app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:5176",              # 로컬 개발용
-        "http://127.0.0.1:5176",  
+        "http://localhost:5175",              # 로컬 개발용
+        "http://127.0.0.1:5175",  
         "https://helping-chair.vercel.app",   
-        "http://192.168.0.159:5176", 
+        "http://192.168.0.159:5175", 
         "https://6909-14-42-86-124.ngrok-free.app",
         "http://192.168.0.142"            # 로컬 개발용
     ],
@@ -279,6 +277,7 @@ app.include_router(accelerometer_router, prefix="/api", tags=["accelerometer"])
 app.include_router(obstacle_router, prefix="/api", tags=["latest_obstacle"])
 app.include_router(profile_router, prefix="/api", tags=["profile"])
 app.include_router(report_router, prefix="/api", tags=["report"])
+app.include_router(fall_alert_router, prefix="/api", tags=["fall_alert"])
 #app.include_router(pothole_router, prefix="/api", tags=["upload"])
 
 # FastAPI 앱 실행

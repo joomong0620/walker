@@ -206,6 +206,7 @@ async def get_latest_obstacle_data(
                 "obstacle_type": latest_data.obstacle_type,
                 "detection_time": latest_data.detection_time.isoformat(),
                 "is_detected": latest_data.is_detected,
+                # "boxes": latest_data.bbox_json  
             }
         else:
             return {"message": "데이터가 없습니다."}
@@ -234,6 +235,15 @@ async def upload_obstacle_image(
         results = model.predict(frame, conf=0.3, imgsz=224, device="cpu", stream=False)
         boxes = results[0].boxes
         high_conf_boxes = [box for box in boxes if box.conf[0] >= 0.7]
+        # bounding box 좌표 추출
+        bbox_list = []
+        for box in high_conf_boxes:
+            x1, y1, x2, y2 = box.xyxy[0].tolist()
+            bbox_list.append({
+                "x1": int(x1), "y1": int(y1),
+                "x2": int(x2), "y2": int(y2)
+            })
+
         is_detected = 1 if len(high_conf_boxes) > 0 else 0
         logger.info(f"🚨 (업로드) 감지 결과 (0.70 이상): {is_detected}")
 
@@ -262,12 +272,13 @@ async def upload_obstacle_image(
         await db.commit()
         await db.refresh(obstacle)
         
-        logger.info(f"✅ 업로드 이미지 DB 저장 성공: {obstacle_id}")
+        logger.info(f"업로드 이미지 DB 저장 성공: {obstacle_id}")
         return {
             "message": "업로드 이미지 처리 완료", 
             "is_detected": is_detected,
             "obstacle_id": obstacle_id,
-            "labels": labels
+            "labels": labels,
+            "boxes": bbox_list  
         }
 
     except Exception as e:
