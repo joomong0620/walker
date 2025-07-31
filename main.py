@@ -28,11 +28,10 @@ from routers.fall_alert import router as fall_alert_router
 # from PIL import Image
 # from ai import predict_image  # YOLO 함수 불러오기
 
-import os
+from dotenv import load_dotenv
+load_dotenv()
 
-
-DATABASE_URL = "postgresql+asyncpg://postgres:1514@localhost:5432/walker"
-
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 # SQLAlchemy 비동기 엔진 및 세션 설정
 engine = create_async_engine(DATABASE_URL, echo=True)
