@@ -9,7 +9,7 @@ from sqlalchemy.future import select
 from sqlalchemy import update, delete
 from pydantic import BaseModel
 from model.models import Base, User, Guardian
-from utils import sqlalchemy_to_dict
+# from utils import sqlalchemy_to_dict
 from routers.activity import router as activity_router
 from routers.heartrate import router as heartrate_router
 from routers.gps import router as gps_router
