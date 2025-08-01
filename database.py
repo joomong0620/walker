@@ -4,7 +4,8 @@ from sqlalchemy.orm import sessionmaker
 from dotenv import load_dotenv
 load_dotenv()  # .env 파일에서 DATABASE_URL 읽어오기
 
-DATABASE_URL = "postgresql+asyncpg://postgres:1514@localhost:5432/walker"
+import os
+DATABASE_URL = os.getenv("DATABASE_URL")
 # 비동기 엔진 생성
 engine = create_async_engine(DATABASE_URL, echo=True)
 
