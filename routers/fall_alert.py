@@ -5,18 +5,28 @@ from sqlalchemy import select, desc, func
 from database import get_db
 from model.models import FallAlert, AccelerometerData
 from datetime import datetime, timedelta
+from pydantic import BaseModel
+from datetime import datetime, timedelta, timezone
+
+KST = timezone(timedelta(hours=9))
+
+now = datetime.now(KST)  # 한국 시간
 
 router = APIRouter()
 
 # ------------------------
-# POST: 센서 데이터 수신 → 낙상 자동 감지
+# 요청 모델
 # ------------------------
-@router.post("/accelerometer/fall-detect")
-async def receive_accel_and_check_fall(
-    user_id: str = Query(...),
-    walker_id: str = Query(...),
-    db: AsyncSession = Depends(get_db)
-):
+class DashboardResponse(BaseModel):
+    action: str  # "turned_off" 또는 "not_turned_off"
+
+# ------------------------
+# 낙상 자동 감지 함수 (가속도계 데이터 저장 시 호출)
+# ------------------------
+async def check_fall_detection(user_id: str, walker_id: str, db: AsyncSession):
+    """
+    최근 20초간 낙상 slope가 15번 이상이면 낙상 알림 등록
+    """
     now = datetime.utcnow()
     window_start = now - timedelta(seconds=20)
 
@@ -30,8 +40,9 @@ async def receive_accel_and_check_fall(
     )
     fall_entries = result.scalars().all()
 
-    # 알림 이미 존재하는지 확인
-    if len(fall_entries) >= 20:
+    # 낙상 감지 기준: 20초 안에 15번 이상
+    if len(fall_entries) >= 15:
+        # 이미 활성화된 알림이 있는지 확인
         existing_alert_result = await db.execute(
             select(FallAlert)
             .where(FallAlert.user_id == user_id)
@@ -45,88 +56,36 @@ async def receive_accel_and_check_fall(
                 user_id=user_id,
                 walker_id=walker_id,
                 timestamp=now,
-                resolved=False
+                resolved=False,
+                dashboard_response=None,  # 대시보드 응답 대기 중
+                response_timestamp=None   # 응답 시간
             )
             db.add(alert)
             await db.commit()
-            return {"message": "자동 낙상 알림 등록 완료"}
+            print(f"🚨 낙상 알림 자동 등록! 사용자: {user_id}, 워커: {walker_id}, 낙상 횟수: {len(fall_entries)}")
+            return True
         else:
-            return {"message": "이미 활성화된 낙상 알림이 있습니다."}
+            print(f"⚠️ 이미 활성화된 낙상 알림 존재: {user_id}, {walker_id}")
+            return False
 
-    return {"message": "낙상 감지 기준 미충족", "count": len(fall_entries)}
+    return False
 
 # ------------------------
-# POST: 대시보드 → 낙상 감지 알림 수동 전송
+# GET: 대시보드에서 낙상 알림 확인 (폴링용)
 # ------------------------
-@router.post("/fall-alert/")
-async def send_fall_alert(
+@router.get("/fall-alert/dashboard")
+async def get_fall_alert_for_dashboard(
     user_id: str = Query(...),
     walker_id: str = Query(...),
     db: AsyncSession = Depends(get_db)
 ):
-    now = datetime.utcnow()
-
+    # 대시보드 응답 대기 중인 알림 조회
     result = await db.execute(
         select(FallAlert)
         .where(FallAlert.user_id == user_id)
         .where(FallAlert.walker_id == walker_id)
         .where(FallAlert.resolved == False)
-        .order_by(desc(FallAlert.timestamp))
-    )
-    active_alert = result.scalar_one_or_none()
-
-    if active_alert:
-        return {"message": "이미 활성화된 낙상 알림이 있습니다."}
-
-    alert = FallAlert(
-        user_id=user_id,
-        walker_id=walker_id,
-        timestamp=now,
-        resolved=False
-    )
-    db.add(alert)
-    await db.commit()
-    return {"message": "낙상 알림 등록 완료"}
-
-# ------------------------
-# POST: 보호자가 알림을 해제함
-# ------------------------
-@router.post("/fall-alert/resolve")
-async def resolve_fall_alert(
-    user_id: str = Query(...),
-    walker_id: str = Query(...),
-    db: AsyncSession = Depends(get_db)
-):
-    result = await db.execute(
-        select(FallAlert)
-        .where(FallAlert.user_id == user_id)
-        .where(FallAlert.walker_id == walker_id)
-        .where(FallAlert.resolved == False)
-        .order_by(desc(FallAlert.timestamp))
-    )
-    alert = result.scalar_one_or_none()
-
-    if alert:
-        alert.resolved = True
-        alert.resolved_at = datetime.utcnow()
-        await db.commit()
-        return {"message": "낙상 알림이 해제되었습니다."}
-    return {"message": "활성화된 낙상 알림이 없습니다."}
-
-# ------------------------
-# GET: 보호자 앱 → 낙상 알림 조회 (5초마다)
-# ------------------------
-@router.get("/fall-alert/check")
-async def check_fall_alert(
-    user_id: str = Query(...),
-    walker_id: str = Query(...),
-    db: AsyncSession = Depends(get_db)
-):
-    result = await db.execute(
-        select(FallAlert)
-        .where(FallAlert.user_id == user_id)
-        .where(FallAlert.walker_id == walker_id)
-        .where(FallAlert.resolved == False)
+        .where(FallAlert.dashboard_response == None)  # 아직 대시보드에서 응답 안함
         .order_by(desc(FallAlert.timestamp))
     )
     alert = result.scalar_one_or_none()
@@ -135,37 +94,95 @@ async def check_fall_alert(
         return {
             "fall_detected": True,
             "timestamp": alert.timestamp.isoformat(),
+            "alert_id": alert.id
         }
-    return {"fall_detected": False}
+    else:
+        return {
+            "fall_detected": False,
+            "alert_id": None
+        }
 
 # ------------------------
-# POST: 테스트용 낙상 데이터 20개 삽입
+# POST: 대시보드에서 보호자 응답 전송 (껐다/안껐다)
 # ------------------------
-@router.post("/test/fall-dummy")
-async def insert_fall_dummy(
-    
+@router.post("/fall-alert/dashboard-response")
+async def receive_dashboard_response(
+    data: DashboardResponse,
     user_id: str = Query(...),
     walker_id: str = Query(...),
     db: AsyncSession = Depends(get_db)
-    
 ):
-    user_id = user_id.strip()
-    walker_id = walker_id.strip()
-    
     now = datetime.utcnow()
-    for i in range(20):
-        entry = AccelerometerData(
-            user_id=user_id,
-            walker_id=walker_id,
-            accel_value=0.4 + i * 0.01,
-            ax=0.1,
-            ay=0.2,
-            az=0.3,
-            is_moving=1,
-            pitch=15.0,
-            slope="낙상",
-            timestamp=now - timedelta(seconds=20 - i)
-        )
-        db.add(entry)
-    await db.commit()
-    return {"message": "테스트용 낙상 데이터 20개 삽입 완료", "user_id": user_id, "walker_id": walker_id}
+    
+    # 응답 대기 중인 알림 조회
+    result = await db.execute(
+        select(FallAlert)
+        .where(FallAlert.user_id == user_id)
+        .where(FallAlert.walker_id == walker_id)
+        .where(FallAlert.resolved == False)
+        .where(FallAlert.dashboard_response == None)
+        .order_by(desc(FallAlert.timestamp))
+    )
+    alert = result.scalar_one_or_none()
+
+    if not alert:
+        return {"message": "응답할 낙상 알림이 없습니다.", "success": False}
+
+    # 응답 처리 (1분 체크 없이 바로 저장)
+    if data.action in ["turned_off", "not_turned_off"]:
+        alert.dashboard_response = data.action
+        alert.response_timestamp = now
+        alert.resolved = True
+        await db.commit()
+        
+        return {
+            "message": f"대시보드 응답이 저장되었습니다: {data.action}",
+            "success": True,
+            "action": data.action
+        }
+    else:
+        return {
+            "message": "잘못된 응답입니다. 'turned_off' 또는 'not_turned_off'만 가능합니다.",
+            "success": False
+        }
+
+# ------------------------
+# GET: 앱에서 낙상 알림 결과 조회 (폴링용)
+# ------------------------
+@router.get("/fall-alert/app")
+async def get_fall_alert_for_app(
+    user_id: str = Query(...),
+    walker_id: str = Query(...),
+    db: AsyncSession = Depends(get_db)
+):
+    # 최근 해결된 알림 중에서 대시보드 응답이 있는 것 조회
+    result = await db.execute(
+        select(FallAlert)
+        .where(FallAlert.user_id == user_id)
+        .where(FallAlert.walker_id == walker_id)
+        .where(FallAlert.resolved == True)
+        .where(FallAlert.dashboard_response != None)
+        .order_by(desc(FallAlert.response_timestamp))
+        .limit(1)
+    )
+    alert = result.scalar_one_or_none()
+
+    if alert:
+        return {
+            "has_result": True,
+            "fall_timestamp": alert.timestamp.isoformat(),
+            "response_timestamp": alert.response_timestamp.isoformat() if alert.response_timestamp else None,
+            "dashboard_response": alert.dashboard_response,
+            "alert_id": alert.id,
+            "response_message": "보호자가 알림을 껐습니다." if alert.dashboard_response == "turned_off" else "보호자가 알림을 끄지 않았습니다."
+        }
+    else:
+        return {
+            "has_result": False,
+            "fall_timestamp": None,
+            "response_timestamp": None,
+            "dashboard_response": None,
+            "alert_id": None,
+            "response_message": "처리된 낙상 알림이 없습니다."
+        }
+

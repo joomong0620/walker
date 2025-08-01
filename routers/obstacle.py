@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # YOLO 모델 로드 (경량) - 모델 obstacle_best.pt는 yolov8s.pt 모델이어서, ylolv8n.pt로 변경
-model = YOLO("obstacle_best.pt")
+model = YOLO("obsUpper.pt")
 model.fuse()
 
 # 스트리밍 URL

@@ -129,3 +129,5 @@ class FallAlert(Base):
     timestamp = Column(DateTime, default=func.now())
     resolved = Column(Boolean, default=False)
     resolved_at = Column(DateTime, nullable=True)
+    dashboard_response = Column(String, nullable=True)  # "turned_off" / "not_turned_off"
+    response_timestamp = Column(DateTime, nullable=True)
