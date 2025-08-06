@@ -2,7 +2,6 @@
 # 1. 기준 범위 수정
 # 2. 정지 상태 판단에 더 보수적인 안정성 조건
 # 3. 평균 기준으로 절대값 체크 강화
-# 4. 낙상 감지 함수 호출 추가
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,56 +13,6 @@ from pydantic import BaseModel
 import math
 
 router = APIRouter()
-
-# 낙상 감지 함수 (fall_alert.py에서 복사)
-async def check_fall_detection(user_id: str, walker_id: str, db: AsyncSession):
-    """
-    최근 20초간 낙상 slope가 15번 이상이면 낙상 알림 등록
-    """
-    from model.models import FallAlert  # 여기서 import
-    
-    now = datetime.utcnow()
-    window_start = now - timedelta(seconds=20)
-
-    # 최근 20초간 낙상 slope 데이터 조회
-    result = await db.execute(
-        select(AccelerometerData)
-        .where(AccelerometerData.user_id == user_id)
-        .where(AccelerometerData.walker_id == walker_id)
-        .where(AccelerometerData.timestamp >= window_start)
-        .where(AccelerometerData.slope == "낙상")
-    )
-    fall_entries = result.scalars().all()
-
-    # 낙상 감지 기준: 20초 안에 15번 이상
-    if len(fall_entries) >= 15:
-        # 이미 활성화된 알림이 있는지 확인
-        existing_alert_result = await db.execute(
-            select(FallAlert)
-            .where(FallAlert.user_id == user_id)
-            .where(FallAlert.walker_id == walker_id)
-            .where(FallAlert.resolved == False)
-        )
-        existing_alert = existing_alert_result.scalar_one_or_none()
-
-        if not existing_alert:
-            alert = FallAlert(
-                user_id=user_id,
-                walker_id=walker_id,
-                timestamp=now,
-                resolved=False,
-                dashboard_response=None,
-                response_timestamp=None
-            )
-            db.add(alert)
-            await db.commit()
-            print(f"🚨 낙상 알림 자동 등록! 사용자: {user_id}, 워커: {walker_id}, 낙상 횟수: {len(fall_entries)}")
-            return True
-        else:
-            print(f"⚠️ 이미 활성화된 낙상 알림 존재: {user_id}, {walker_id}")
-            return False
-
-    return False
 
 class AccelRequest(BaseModel):
     user_id: str
@@ -141,7 +90,6 @@ async def receive_from_hardware(
 
         await db.commit()
 
-    # AccelerometerData 먼저 저장
     entry = AccelerometerData(
         user_id=data.user_id,
         walker_id=data.walker_id,
@@ -156,16 +104,10 @@ async def receive_from_hardware(
     )
 
     db.add(entry)
-    await db.commit()  # 먼저 커밋
-
-    # 낙상 감지 로직 실행
     if data.slope == "낙상":
         print(f"🚨 낙상 감지됨! 사용자: {data.user_id}, 워커: {data.walker_id}, 시간: {now}")
-        # 낙상 알림 등록 함수 호출
-        fall_detected = await check_fall_detection(data.user_id, data.walker_id, db)
-        if fall_detected:
-            print(f"✅ 낙상 알림이 등록되었습니다!")
 
+    await db.commit()
     print(f"DEBUG - Final: accel_value={accel_value:.3f}, is_moving={is_moving}")
 
     return {
