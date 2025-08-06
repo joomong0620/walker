@@ -1,18 +1,70 @@
+# 개선된 움직임 판단 로직 적용
+# 1. 기준 범위 수정
+# 2. 정지 상태 판단에 더 보수적인 안정성 조건
+# 3. 평균 기준으로 절대값 체크 강화
+# 4. 낙상 감지 함수 호출 추가
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 from datetime import datetime, timedelta
 from database import get_db
-from model.models import AccelerometerData
-from model.models import ActivityDuration  
+from model.models import AccelerometerData, ActivityDuration
 from pydantic import BaseModel
 import math
 
 router = APIRouter()
 
-# --------------------
-# 요청 모델
-# --------------------
+# 낙상 감지 함수 (fall_alert.py에서 복사)
+async def check_fall_detection(user_id: str, walker_id: str, db: AsyncSession):
+    """
+    최근 20초간 낙상 slope가 15번 이상이면 낙상 알림 등록
+    """
+    from model.models import FallAlert  # 여기서 import
+    
+    now = datetime.utcnow()
+    window_start = now - timedelta(seconds=20)
+
+    # 최근 20초간 낙상 slope 데이터 조회
+    result = await db.execute(
+        select(AccelerometerData)
+        .where(AccelerometerData.user_id == user_id)
+        .where(AccelerometerData.walker_id == walker_id)
+        .where(AccelerometerData.timestamp >= window_start)
+        .where(AccelerometerData.slope == "낙상")
+    )
+    fall_entries = result.scalars().all()
+
+    # 낙상 감지 기준: 20초 안에 15번 이상
+    if len(fall_entries) >= 15:
+        # 이미 활성화된 알림이 있는지 확인
+        existing_alert_result = await db.execute(
+            select(FallAlert)
+            .where(FallAlert.user_id == user_id)
+            .where(FallAlert.walker_id == walker_id)
+            .where(FallAlert.resolved == False)
+        )
+        existing_alert = existing_alert_result.scalar_one_or_none()
+
+        if not existing_alert:
+            alert = FallAlert(
+                user_id=user_id,
+                walker_id=walker_id,
+                timestamp=now,
+                resolved=False,
+                dashboard_response=None,
+                response_timestamp=None
+            )
+            db.add(alert)
+            await db.commit()
+            print(f"🚨 낙상 알림 자동 등록! 사용자: {user_id}, 워커: {walker_id}, 낙상 횟수: {len(fall_entries)}")
+            return True
+        else:
+            print(f"⚠️ 이미 활성화된 낙상 알림 존재: {user_id}, {walker_id}")
+            return False
+
+    return False
+
 class AccelRequest(BaseModel):
     user_id: str
     walker_id: str
@@ -22,9 +74,6 @@ class AccelRequest(BaseModel):
     pitch: float
     slope: str
 
-# --------------------
-# POST: 센서 → 서버로 데이터 전송
-# --------------------
 @router.post("/accelerometer/")
 async def receive_from_hardware(
     data: AccelRequest,
@@ -33,63 +82,42 @@ async def receive_from_hardware(
     now = datetime.utcnow()
     accel_value = math.sqrt(data.ax ** 2 + data.ay ** 2 + data.az ** 2)
 
-    # 최근 5초간 데이터 조회 (기간 늘림)
-    five_seconds_ago = now - timedelta(seconds=5)
+    eight_seconds_ago = now - timedelta(seconds=8)
     result = await db.execute(
         select(AccelerometerData)
         .where(AccelerometerData.user_id == data.user_id)
         .where(AccelerometerData.walker_id == data.walker_id)
-        .where(AccelerometerData.timestamp >= five_seconds_ago)
+        .where(AccelerometerData.timestamp >= eight_seconds_ago)
         .order_by(desc(AccelerometerData.timestamp))
     )
     recent_entries = result.scalars().all()
 
-    # 움직임 판단 로직 - 정지 상태 더 엄격하게 판단
     is_moving = 0
-    zero_count = 0
-    
-    # 확실한 움직임 임계값을 더 높게 설정
-    if accel_value >= 0.08:
+
+    # 기준값 범위 재조정 (실제 평지 가속값 0.94~0.98 근처)
+    if accel_value <= 0.98:
+        is_moving = 0
+        print(f"DEBUG - 정지: accel_value={accel_value:.3f}")
+    elif accel_value >= 1.02:
         is_moving = 1
+        print(f"DEBUG - 움직임: accel_value={accel_value:.3f}")
     else:
-        # 0.08 미만일 때는 매우 엄격하게 판단
-        if recent_entries:
-            recent_moving_count = sum(1 for e in recent_entries if e.is_moving == 1)
-            recent_zero_count = sum(1 for e in recent_entries if e.is_moving == 0)
-            zero_count = recent_zero_count
-            
-            # 현재 값이 0.04 미만이면 거의 확실히 정지 (강제 정지)
-            if accel_value < 0.04:
+        # 0.98~1.02 사이 애매한 값일 경우 과거 분석
+        values = [entry.accel_value for entry in recent_entries[:5]]
+        values.append(accel_value)
+
+        if len(values) >= 2:
+            diffs = [abs(values[i] - values[i-1]) for i in range(1, len(values))]
+            std = math.sqrt(sum((v - sum(values)/len(values))**2 for v in values) / len(values))
+            rng = max(values) - min(values)
+
+            if max(diffs) < 0.002 and std < 0.002 and rng < 0.005:
                 is_moving = 0
-            # 현재 값이 0.04~0.06 사이면 매우 엄격하게 판단
-            elif accel_value < 0.06:
-                # 과거 데이터가 모두 1이더라도 현재 값이 낮으면 정지로 강제 전환
-                if recent_zero_count == 0:  # 과거에 0이 없으면
-                    is_moving = 0  # 강제로 정지 상태 시작
-                else:
-                    # 최근 1개라도 0이면 정지
-                    last_1_entry = recent_entries[:1]
-                    if last_1_entry and last_1_entry[0].is_moving == 0:
-                        is_moving = 0
-                    else:
-                        is_moving = 1
-            # 현재 값이 0.06~0.08 사이면 연속성으로 판단하되 엄격하게
-            else:
-                # 최근 2개 중 1개라도 0이면 정지
-                last_2_entries = recent_entries[:2]
-                last_2_zeros = sum(1 for e in last_2_entries if e.is_moving == 0)
-                if last_2_zeros >= 1:
-                    is_moving = 0
-                else:
-                    is_moving = 1
-        else:
-            # 최근 데이터가 없으면 0.06 미만일 때만 정지
-            if accel_value < 0.06:
-                is_moving = 0
+                print(f"DEBUG - 정지 판단 (평균 변화량 기준): std={std:.5f}, range={rng:.5f}")
             else:
                 is_moving = 1
+                print(f"DEBUG - 움직임 판단 (미세 변화 감지): std={std:.5f}, range={rng:.5f}")
 
-    # 활동 시간 저장 (움직임이 감지된 경우에만)
     if is_moving == 1:
         today = now.date()
         result = await db.execute(
@@ -113,7 +141,7 @@ async def receive_from_hardware(
 
         await db.commit()
 
-    # accelerometer 데이터 저장
+    # AccelerometerData 먼저 저장
     entry = AccelerometerData(
         user_id=data.user_id,
         walker_id=data.walker_id,
@@ -128,23 +156,25 @@ async def receive_from_hardware(
     )
 
     db.add(entry)
+    await db.commit()  # 먼저 커밋
+
+    # 낙상 감지 로직 실행
     if data.slope == "낙상":
         print(f"🚨 낙상 감지됨! 사용자: {data.user_id}, 워커: {data.walker_id}, 시간: {now}")
-    
-    await db.commit()
-    
-    print(f"DEBUG - accel_value: {accel_value:.3f}, is_moving: {is_moving}, zero_count: {zero_count}")
+        # 낙상 알림 등록 함수 호출
+        fall_detected = await check_fall_detection(data.user_id, data.walker_id, db)
+        if fall_detected:
+            print(f"✅ 낙상 알림이 등록되었습니다!")
+
+    print(f"DEBUG - Final: accel_value={accel_value:.3f}, is_moving={is_moving}")
 
     return {
-        "message": " 센서 데이터 저장 완료",
+        "message": "센서 데이터 저장 완료",
         "accel_value": round(accel_value, 3),
         "is_moving": is_moving,
         "timestamp": now.isoformat()
     }
 
-# --------------------
-# GET: 최신 데이터 요청
-# --------------------
 @router.get("/accelerometer/latest")
 async def get_latest_data(
     user_id: str = Query(...),
