@@ -1,10 +1,7 @@
-# 개선된 움직임 판단 로직 적용
-# 1. 기준 범위 수정
-# 2. 정지 상태 판단에 더 보수적인 안정성 조건
-# 3. 평균 기준으로 절대값 체크 강화
+# accelerometer.py 수정 - receive_from_hardware 함수 업데이트
 
 from fastapi import APIRouter, Depends, Query
-from routers.fall_alert import check_fall_detection
+from routers.fall_alert import check_fall_detection  # 이미 import되어 있음
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 from datetime import datetime, timedelta
@@ -91,6 +88,7 @@ async def receive_from_hardware(
 
         await db.commit()
 
+    # 가속도계 데이터 저장
     entry = AccelerometerData(
         user_id=data.user_id,
         walker_id=data.walker_id,
@@ -105,10 +103,20 @@ async def receive_from_hardware(
     )
 
     db.add(entry)
+    await db.commit()
+
+    # 🚨 여기가 핵심! 낙상 데이터가 들어오면 자동 감지 실행
+    fall_alert_created = False
     if data.slope == "낙상":
         print(f"🚨 낙상 감지됨! 사용자: {data.user_id}, 워커: {data.walker_id}, 시간: {now}")
-
-    await db.commit()
+        
+        # 낙상 자동 감지 함수 호출
+        fall_alert_created = await check_fall_detection(data.user_id, data.walker_id, db)
+        
+        if fall_alert_created:
+            print(f"✅ 낙상 알림 자동 생성 완료!")
+        else:
+            print(f"⚠️ 낙상 감지 조건 미충족 또는 이미 활성 알림 존재")
 
     print(f"DEBUG - Final: accel_value={accel_value:.3f}, is_moving={is_moving}")
     
@@ -116,11 +124,12 @@ async def receive_from_hardware(
         "message": "센서 데이터 저장 완료",
         "accel_value": round(accel_value, 3),
         "is_moving": is_moving,
+        "fall_alert_created": fall_alert_created,  # 낙상 알림 생성 여부 추가
         "timestamp": now.isoformat()
     }
 
-   
 
+# 나머지 코드는 그대로...
 @router.get("/accelerometer/latest")
 async def get_latest_data(
     user_id: str = Query(...),
