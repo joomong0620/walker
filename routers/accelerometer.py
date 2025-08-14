@@ -4,6 +4,7 @@
 # 3. 평균 기준으로 절대값 체크 강화
 
 from fastapi import APIRouter, Depends, Query
+from routers.fall_alert import check_fall_detection
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 from datetime import datetime, timedelta
@@ -108,14 +109,17 @@ async def receive_from_hardware(
         print(f"🚨 낙상 감지됨! 사용자: {data.user_id}, 워커: {data.walker_id}, 시간: {now}")
 
     await db.commit()
-    print(f"DEBUG - Final: accel_value={accel_value:.3f}, is_moving={is_moving}")
 
+    print(f"DEBUG - Final: accel_value={accel_value:.3f}, is_moving={is_moving}")
+    
     return {
         "message": "센서 데이터 저장 완료",
         "accel_value": round(accel_value, 3),
         "is_moving": is_moving,
         "timestamp": now.isoformat()
     }
+
+   
 
 @router.get("/accelerometer/latest")
 async def get_latest_data(
