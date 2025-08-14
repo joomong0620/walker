@@ -16,17 +16,17 @@ import queue
 app = FastAPI()
 router = APIRouter()
 
-# ✅ YOLO 모델 로드
+# YOLO 모델 로드
 model = YOLO("lane_seg_best.pt")
 model.fuse()
 
-# ✅ 스트리밍 URL
+# 스트리밍 URL
 STREAM_URL = "http://192.168.0.142:5000/?action=stream"
 
-# ✅ 프레임 큐
+# 프레임 큐
 frame_queue = queue.Queue(maxsize=1)
 
-# ✅ 프레임 캡쳐 스레드
+# 프레임 캡쳐 스레드
 class FrameGrabber(threading.Thread):
     def __init__(self, stream_url):
         super().__init__()

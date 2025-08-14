@@ -28,11 +28,10 @@ from routers.fall_alert import router as fall_alert_router
 # from PIL import Image
 # from ai import predict_image  # YOLO 함수 불러오기
 
-import os
+from dotenv import load_dotenv
+load_dotenv()
 
-
-DATABASE_URL = "postgresql+asyncpg://postgres:1514@localhost:5432/walker"
-
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 # SQLAlchemy 비동기 엔진 및 세션 설정
 engine = create_async_engine(DATABASE_URL, echo=True)
@@ -45,10 +44,10 @@ app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:5175",              # 로컬 개발용
-        "http://127.0.0.1:5175",  
+        "http://localhost:5174",              # 로컬 개발용
+        "http://127.0.0.1:5174",  
         "https://helping-chair.vercel.app",   
-        "http://192.168.0.159:5175", 
+        "http://192.168.0.159:5174", 
         "https://6909-14-42-86-124.ngrok-free.app",
         "http://192.168.0.142"            # 로컬 개발용
     ],
