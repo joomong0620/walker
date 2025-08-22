@@ -1,5 +1,4 @@
-# accelerometer.py 수정 - receive_from_hardware 함수 업데이트
-
+# accelerometer.py
 from fastapi import APIRouter, Depends, Query
 from routers.fall_alert import check_fall_detection  # 이미 import되어 있음
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -127,8 +126,6 @@ async def receive_from_hardware(
             )
             db.add(duration_entry)
 
-        await db.commit()
-
     # 가속도계 데이터 저장
     entry = AccelerometerData(
         user_id=data.user_id,
@@ -142,9 +139,10 @@ async def receive_from_hardware(
         slope=data.slope,
         timestamp=now
     )
-
     db.add(entry)
-    await db.commit()
+
+    # 여기서 flush로 INSERT를 DB에 반영(커밋은 아님) → 같은 트랜잭션 내 집계에 포함
+    await db.flush()
 
     # 🚨 낙상 태그가 들어오면 자동 감지 실행
     fall_alert_created = False
@@ -154,7 +152,10 @@ async def receive_from_hardware(
         if fall_alert_created:
             print("✅ 낙상 알림 자동 생성 완료!")
         else:
-            print("⚠️ 낙상 감지 조건 미충족 또는 이미 활성 알림 존재")
+            print("⚠️ 낙상 감지 기준 미충족")
+
+    # 마지막에 한 번만 커밋
+    await db.commit()
 
     print(f"DEBUG - Final: accel_value={accel_value:.5f}, is_moving={is_moving}")
 
