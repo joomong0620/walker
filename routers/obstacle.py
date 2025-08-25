@@ -7,6 +7,7 @@ from model.models import ObstacleData
 from ultralytics import YOLO
 from datetime import datetime
 import uuid
+import cv2
 import asyncio
 import threading
 import queue
