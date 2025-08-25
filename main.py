@@ -18,7 +18,6 @@ from routers.pothole import router as pothole_router
 from routers.accelerometer import router as accelerometer_router
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.middleware.cors import CORSMiddleware
 from routers.obstacle import router as obstacle_router
 from routers.profile import router as profile_router
 from routers.report import router as report_router
