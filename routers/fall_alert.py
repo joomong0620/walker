@@ -14,7 +14,7 @@ class DashboardResponse(BaseModel):
     action: str  # "turned_off" 또는 "not_turned_off"
 
 WINDOW_SECONDS = 20
-FALL_THRESH = 15
+FALL_THRESH = 10
 
 async def check_fall_detection(user_id: str, walker_id: str, db: AsyncSession):
     """낙상 감지 체크 함수"""

@@ -41,7 +41,7 @@ async def receive_from_hardware(
     # ---------------------------
     # 움직임 판단 로직 (튜닝 상수)
     # ---------------------------
-    HARD_MOVE_THRESH = 0.060   # 이 값 이상이면 즉시 '움직임'
+    HARD_MOVE_THRESH = 0.060   # 이 값 이상이면 움직임 후보
     SOFT_BAND_LOW    = 0.030   # 애매 구간 하한
     SOFT_BAND_HIGH   = 0.060   # 애매 구간 상한
 
@@ -61,22 +61,51 @@ async def receive_from_hardware(
 
     is_moving = 0
 
-    # 1) 하드 임계로 빠른 판정
+    # 1) 하드 임계로 빠른 판정 - 연속 2개 이상 체크
     if accel_value >= HARD_MOVE_THRESH:
-        is_moving = 1
-        print(f"DEBUG - 즉시 움직임: accel={accel_value:.5f} (>= {HARD_MOVE_THRESH})")
+        # 현재 값이 1 이상이면, 이전 값도 1 이상인지 확인
+        consecutive_high = 1  # 현재 값 포함
+        
+        # 최근 값들 중에서 연속으로 1 이상인 개수 세기
+        for i in range(len(values) - 2, -1, -1):  # 뒤에서부터 체크
+            if values[i] >= HARD_MOVE_THRESH:
+                consecutive_high += 1
+            else:
+                break
+        
+        if consecutive_high >= 2:
+            is_moving = 1
+            print(f"DEBUG - 연속 움직임: 연속 {consecutive_high}개, 현재 accel={accel_value:.5f}")
+            
+            # 스파이크 필터는 연속 2개 이상일 때는 적용하지 않음 (실제 움직임으로 간주)
+        else:
+            print(f"DEBUG - 단일 높은 값 무시: accel={accel_value:.5f}, 연속개수={consecutive_high}")
+            # 단일 높은 값은 무시하고 통계 기반 판정으로 넘어감
+            
+            # 통계 기반 판정을 위해 HARD_MOVE_THRESH를 일시적으로 원래 값으로 처리
+            if accel_value <= SOFT_BAND_LOW:
+                is_moving = 0
+                print(f"DEBUG - 저신호 정지: accel={accel_value:.5f} (<= {SOFT_BAND_LOW})")
+            else:
+                win = values[-8:] if len(values) >= 8 else values
+                if len(win) >= 3:
+                    mean_v = sum(win) / len(win)
+                    diffs = [abs(win[i] - win[i - 1]) for i in range(1, len(win))]
+                    std = (sum((v - mean_v) ** 2 for v in win) / len(win)) ** 0.5
+                    rng = max(win) - min(win)
+                    maxdiff = max(diffs) if diffs else 0.0
 
-        # 1-1) 스파이크 필터: 주변이 너무 조용하면 단발 스파이크로 무시
-        if len(values) >= 3 and accel_value >= SPIKE_ABS:
-            prev_v = values[-2]
-            if abs(accel_value - prev_v) >= SPIKE_NEIGH_DIFF:
-                # 이전/주변이 잔잔하면 스파이크로 의심
-                mean_v = sum(values) / len(values)
-                local_std = (sum((v - mean_v) ** 2 for v in values) / len(values)) ** 0.5
-                local_rng = max(values) - min(values)
-                if local_std < STD_THRESH and local_rng < RANGE_THRESH:
-                    is_moving = 0
-                    print(f"DEBUG - 스파이크 무시: spike={accel_value:.5f}, prev={prev_v:.5f}, std={local_std:.5f}, rng={local_rng:.5f}")
+                    if (std >= STD_THRESH) or (rng >= RANGE_THRESH) or (maxdiff >= MAXDIFF_THRESH):
+                        is_moving = 1
+                        print(f"DEBUG - 통계 기반 움직임: std={std:.5f} rng={rng:.5f} maxdiff={maxdiff:.5f}")
+                    else:
+                        is_moving = 0
+                        print(f"DEBUG - 통계 기반 정지: std={std:.5f} rng={rng:.5f} maxdiff={maxdiff:.5f}")
+                else:
+                    # 데이터가 적으면 보수적으로 중간값 기준
+                    mid = (SOFT_BAND_LOW + SOFT_BAND_HIGH) / 2
+                    is_moving = 1 if accel_value >= mid else 0
+                    print(f"DEBUG - 샘플부족 보수판정: accel={accel_value:.5f}, mid={mid:.5f} -> is_moving={is_moving}")
 
     else:
         # 2) 애매 구간: 통계 기반 판정

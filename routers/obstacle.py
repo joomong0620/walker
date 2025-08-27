@@ -136,9 +136,9 @@ async def detect_from_queue(user_id: str, walker_id: str):
             logger.info(f"YOLO infer time: {asyncio.get_event_loop().time() - t0:.3f}s")
 
             boxes = results[0].boxes
-            high_conf_boxes = [box for box in boxes if box.conf[0] >= 0.7]
+            high_conf_boxes = [box for box in boxes if box.conf[0] >= 0.6]
             is_detected = 1 if len(high_conf_boxes) > 0 else 0
-            logger.info(f"Detected (>=0.7): {is_detected}")
+            logger.info(f"Detected (>=0.6): {is_detected}")
 
             labels = []
             for box in high_conf_boxes:
