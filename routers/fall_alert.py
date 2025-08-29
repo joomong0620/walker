@@ -1,6 +1,6 @@
 # fall_alert.py
 import logging
-from fastapi import APIRouter, Depends, Query, BackgroundTasks
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc, func
 from database import get_db
@@ -13,11 +13,12 @@ router = APIRouter()
 class DashboardResponse(BaseModel):
     action: str  # "turned_off" 또는 "not_turned_off"
 
-WINDOW_SECONDS = 20
-FALL_THRESH = 10
+WINDOW_SECONDS = 20   # 최근 몇 초 범위
+FALL_THRESH = 15      # 낙상 감지 기준 횟수
 
+# ------------------ 낙상 감지 ------------------
 async def check_fall_detection(user_id: str, walker_id: str, db: AsyncSession):
-    """낙상 감지 체크 함수 (중복 방지 포함)"""
+    """낙상 감지 체크 함수"""
     try:
         now = datetime.utcnow()
         window_start = now - timedelta(seconds=WINDOW_SECONDS)
@@ -32,21 +33,6 @@ async def check_fall_detection(user_id: str, walker_id: str, db: AsyncSession):
         )).scalar_one()
 
         if cnt >= FALL_THRESH:
-            # 1) 이미 미해결 알림이 있는지 확인
-            existing_alert = await db.execute(
-                select(FallAlert)
-                .where(FallAlert.user_id == user_id)
-                .where(FallAlert.walker_id == walker_id)
-                .where(FallAlert.resolved == False)
-                .order_by(desc(FallAlert.timestamp))
-            )
-            existing_alert = existing_alert.scalar_one_or_none()
-
-            if existing_alert:
-                logging.info(f"🚨 미해결 알림이 이미 존재: id={existing_alert.id}, timestamp={existing_alert.timestamp}")
-                return False  # 새 알림 생성하지 않음
-
-            # 2) 없으면 새 알림 생성
             alert = FallAlert(
                 user_id=user_id, walker_id=walker_id,
                 timestamp=now, resolved=False,
@@ -54,16 +40,17 @@ async def check_fall_detection(user_id: str, walker_id: str, db: AsyncSession):
             )
             db.add(alert)
             await db.flush()
-            logging.info(f"🚨 낙상 알림 자동 등록! {user_id}/{walker_id}, cnt={cnt} (win {WINDOW_SECONDS}s)")
+            logging.info(f"🚨 낙상 알림 자동 등록! {user_id}/{walker_id}, cnt={cnt}")
             return True
 
-        logging.info(f"ℹ️ 낙상 기준 미충족: cnt={cnt}/{FALL_THRESH} (win {WINDOW_SECONDS}s)")
+        logging.info(f"ℹ️ 낙상 기준 미충족: cnt={cnt}/{FALL_THRESH}")
         return False
     except Exception as e:
         logging.error(f"Fall detection check error: {e}")
         return False
 
 
+# ------------------ 대시보드 폴링 ------------------
 @router.get("/fall-alert/dashboard")
 async def get_fall_alert_for_dashboard(
     user_id: str = Query(...),
@@ -83,10 +70,7 @@ async def get_fall_alert_for_dashboard(
         alert = result.scalar_one_or_none()
 
         if alert:
-            return {
-                "fall_detected": True,
-                "alert_id": alert.id
-            }
+            return {"fall_detected": True, "alert_id": alert.id}
         else:
             return {"fall_detected": False, "alert_id": None}
     except Exception as e:
@@ -94,15 +78,15 @@ async def get_fall_alert_for_dashboard(
         return {"error": str(e), "fall_detected": False, "alert_id": None}
 
 
+# ------------------ 대시보드 응답 ------------------
 @router.post("/fall-alert/dashboard-response")
 async def receive_dashboard_response(
     data: DashboardResponse,
     user_id: str = Query(...),
     walker_id: str = Query(...),
-    db: AsyncSession = Depends(get_db),
-    bg: BackgroundTasks = None
+    db: AsyncSession = Depends(get_db)
 ):
-    """대시보드에서 낙상 알림에 대한 응답 처리"""
+    """대시보드에서 낙상 알림 응답 처리"""
     try:
         now = datetime.utcnow()
 
@@ -120,30 +104,26 @@ async def receive_dashboard_response(
             return {"message": "응답할 낙상 알림이 없습니다.", "success": False}
 
         if data.action not in ["turned_off", "not_turned_off"]:
-            return {"message": "잘못된 응답입니다. 'turned_off' 또는 'not_turned_off'만 가능합니다.", "success": False}
+            return {"message": "잘못된 응답입니다.", "success": False}
 
-        # DB 상태 반영
         alert.dashboard_response = data.action
         alert.response_timestamp = now
         alert.resolved = True
 
-        # not_turned_off인 경우 로그만 남김
         if data.action == "not_turned_off":
-            logging.warning(f"낙상 미해결 알림: 사용자 {user_id}, 기기 {walker_id}, 발생시간 {alert.timestamp}")
+            logging.warning(f"🚨 보호자가 알림을 끄지 않음: {user_id}/{walker_id}, 발생={alert.timestamp}")
 
         await db.commit()
 
-        return {
-            "message": f"대시보드 응답이 저장되었습니다: {data.action}",
-            "success": True,
-            "action": data.action
-        }
+        return {"message": f"응답 저장됨: {data.action}", "success": True, "action": data.action}
+
     except Exception as e:
         logging.error(f"Dashboard response processing failed: {e}")
         await db.rollback()
         return {"error": str(e), "success": False}
 
 
+# ------------------ 앱 폴링 ------------------
 @router.get("/fall-alert/app")
 async def get_fall_alert_for_app(
     user_id: str = Query(...),
@@ -169,7 +149,10 @@ async def get_fall_alert_for_app(
                 "response_timestamp": alert.response_timestamp.isoformat() if alert.response_timestamp else None,
                 "dashboard_response": alert.dashboard_response,
                 "alert_id": alert.id,
-                "response_message": "보호자가 알림을 껐습니다." if alert.dashboard_response == "turned_off" else "보호자가 알림을 끄지 않았습니다."
+                "response_message": (
+                    "보호자가 알림을 껐습니다." if alert.dashboard_response == "turned_off"
+                    else "보호자가 알림을 끄지 않았습니다."
+                )
             }
         else:
             return {
@@ -187,16 +170,15 @@ async def get_fall_alert_for_app(
             "response_timestamp": None,
             "dashboard_response": None,
             "alert_id": None,
-            "response_message": "알림 조회 중 오류가 발생했습니다."
+            "response_message": "알림 조회 중 오류 발생"
         }
 
 
+# ------------------ 상태 체크 ------------------
 @router.get("/fall-alert/status")
 async def get_fall_alert_status():
-    """낙상 알림 시스템 상태 확인"""
     return {
         "window_seconds": WINDOW_SECONDS,
         "fall_threshold": FALL_THRESH,
-        "status": "active",
-        "sms_enabled": False
+        "status": "active"
     }
