@@ -26,7 +26,7 @@ model = YOLO("obsUpper.pt")
 model.fuse()
 
 # 스트리밍 URL
-STREAM_URL = "http://192.168.0.142:8080/?action=stream"
+STREAM_URL = "https://appeared-stickers-ka-greece.trycloudflare.com/?action=stream"
 
 # 프레임 큐 (최신 프레임 하나만 유지)
 frame_queue = queue.Queue(maxsize=1)

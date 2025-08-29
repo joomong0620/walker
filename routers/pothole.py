@@ -21,7 +21,7 @@ model = YOLO("lane_seg_best.pt")
 model.fuse()
 
 # 스트리밍 URL
-STREAM_URL = "http://192.168.0.142:5000/?action=stream"
+STREAM_URL = "https://discussing-rapids-thoroughly-islamic.trycloudflare.com/?action=stream"
 
 # 프레임 큐
 frame_queue = queue.Queue(maxsize=1)
