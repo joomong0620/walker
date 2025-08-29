@@ -303,47 +303,35 @@ async def upload_obstacle_image(
         return {"error": str(e)}
 
 
-@router.post("/obstacle/upload/preview")
-async def upload_obstacle_preview(
-    file: UploadFile = File(...),
-    user_id: str = Query(...),
-    walker_id: str = Query(...),
-):
-    """
-    업로드 이미지를 감지하고, 바운딩 박스가 그려진 이미지를 즉시 JPEG로 반환.
-    디스크 저장 및 DB 기록은 하지 않음(미리보기 용).
-    감지가 없으면 원본 이미지를 반환.
-    """
-    try:
-        image_bytes = await file.read()
-        np_arr = np.frombuffer(image_bytes, np.uint8)
-        frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
-        if frame is None:
-            return {"error": "Failed to read image."}
+@router.get("/obstacle/stream/preview")
+async def stream_preview():
+    """frame_queue의 최신 프레임을 YOLO로 감지 후 바운딩 박스 그려 실시간 스트리밍"""
+    async def frame_generator():
+        while True:
+            if not frame_queue.empty():
+                # 최신 프레임 가져오기
+                frame = frame_queue.queue[-1]  
 
-        results = model.predict(frame, conf=0.3, imgsz=224, device="cpu", stream=False)
-        boxes = results[0].boxes
-        high_conf_boxes = [box for box in boxes if box.conf[0] >= 0.7]
+                # YOLO 감지
+                results = model.predict(frame, conf=0.3, imgsz=224, device="cpu", stream=False)
+                boxes = [box for box in results[0].boxes if box.conf[0] >= 0.6]
+                labels = [model.names[int(box.cls[0])] for box in boxes]
 
-        labels = []
-        for box in high_conf_boxes:
-            class_id = int(box.cls[0])
-            label = model.names[class_id]
-            labels.append(label)
+                # 바운딩 박스 그리기
+                annotated = draw_boxes(frame, boxes, labels)
 
-        if len(high_conf_boxes) > 0:
-            annotated = draw_boxes(frame, high_conf_boxes, labels)
-        else:
-            annotated = frame
+                # JPEG 인코딩
+                ok, buffer = cv2.imencode(".jpg", annotated)
+                if ok:
+                    yield (b"--frame\r\n"
+                           b"Content-Type: image/jpeg\r\n\r\n" +
+                           buffer.tobytes() +
+                           b"\r\n")
 
-        ok, buffer = cv2.imencode(".jpg", annotated)
-        if not ok:
-            return {"error": "Failed to encode image."}
+            await asyncio.sleep(0.2)  # 초당 약 5fps
 
-        return StreamingResponse(io.BytesIO(buffer.tobytes()), media_type="image/jpeg")
-    except Exception as e:
-        logger.error(f"Preview generation failed: {e}")
-        return {"error": str(e)}
+    return StreamingResponse(frame_generator(),
+                             media_type="multipart/x-mixed-replace; boundary=frame")
 
 
 @router.post("/obstacle/stream/stop")
