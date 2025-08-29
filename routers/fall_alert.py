@@ -85,7 +85,6 @@ async def get_fall_alert_for_dashboard(
         if alert:
             return {
                 "fall_detected": True,
-                "timestamp": alert.timestamp.isoformat(),
                 "alert_id": alert.id
             }
         else:
@@ -93,6 +92,7 @@ async def get_fall_alert_for_dashboard(
     except Exception as e:
         logging.error(f"Dashboard alert query failed: {e}")
         return {"error": str(e), "fall_detected": False, "alert_id": None}
+
 
 @router.post("/fall-alert/dashboard-response")
 async def receive_dashboard_response(
@@ -127,7 +127,7 @@ async def receive_dashboard_response(
         alert.response_timestamp = now
         alert.resolved = True
 
-        # not_turned_off인 경우 로그만 남김 (SMS 기능 제거됨)
+        # not_turned_off인 경우 로그만 남김
         if data.action == "not_turned_off":
             logging.warning(f"낙상 미해결 알림: 사용자 {user_id}, 기기 {walker_id}, 발생시간 {alert.timestamp}")
 
@@ -142,6 +142,7 @@ async def receive_dashboard_response(
         logging.error(f"Dashboard response processing failed: {e}")
         await db.rollback()
         return {"error": str(e), "success": False}
+
 
 @router.get("/fall-alert/app")
 async def get_fall_alert_for_app(
@@ -165,7 +166,6 @@ async def get_fall_alert_for_app(
         if alert:
             return {
                 "has_result": True,
-                "fall_timestamp": alert.timestamp.isoformat(),
                 "response_timestamp": alert.response_timestamp.isoformat() if alert.response_timestamp else None,
                 "dashboard_response": alert.dashboard_response,
                 "alert_id": alert.id,
@@ -174,7 +174,6 @@ async def get_fall_alert_for_app(
         else:
             return {
                 "has_result": False,
-                "fall_timestamp": None,
                 "response_timestamp": None,
                 "dashboard_response": None,
                 "alert_id": None,
@@ -185,12 +184,12 @@ async def get_fall_alert_for_app(
         return {
             "error": str(e),
             "has_result": False,
-            "fall_timestamp": None,
             "response_timestamp": None,
             "dashboard_response": None,
             "alert_id": None,
             "response_message": "알림 조회 중 오류가 발생했습니다."
         }
+
 
 @router.get("/fall-alert/status")
 async def get_fall_alert_status():
