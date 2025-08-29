@@ -17,7 +17,7 @@ WINDOW_SECONDS = 20
 FALL_THRESH = 10
 
 async def check_fall_detection(user_id: str, walker_id: str, db: AsyncSession):
-    """낙상 감지 체크 함수"""
+    """낙상 감지 체크 함수 (중복 방지 포함)"""
     try:
         now = datetime.utcnow()
         window_start = now - timedelta(seconds=WINDOW_SECONDS)
@@ -32,13 +32,28 @@ async def check_fall_detection(user_id: str, walker_id: str, db: AsyncSession):
         )).scalar_one()
 
         if cnt >= FALL_THRESH:
+            # 1) 이미 미해결 알림이 있는지 확인
+            existing_alert = await db.execute(
+                select(FallAlert)
+                .where(FallAlert.user_id == user_id)
+                .where(FallAlert.walker_id == walker_id)
+                .where(FallAlert.resolved == False)
+                .order_by(desc(FallAlert.timestamp))
+            )
+            existing_alert = existing_alert.scalar_one_or_none()
+
+            if existing_alert:
+                logging.info(f"🚨 미해결 알림이 이미 존재: id={existing_alert.id}, timestamp={existing_alert.timestamp}")
+                return False  # 새 알림 생성하지 않음
+
+            # 2) 없으면 새 알림 생성
             alert = FallAlert(
                 user_id=user_id, walker_id=walker_id,
                 timestamp=now, resolved=False,
                 dashboard_response=None, response_timestamp=None
             )
             db.add(alert)
-            await db.flush()  # alert.id 확보
+            await db.flush()
             logging.info(f"🚨 낙상 알림 자동 등록! {user_id}/{walker_id}, cnt={cnt} (win {WINDOW_SECONDS}s)")
             return True
 
@@ -47,6 +62,7 @@ async def check_fall_detection(user_id: str, walker_id: str, db: AsyncSession):
     except Exception as e:
         logging.error(f"Fall detection check error: {e}")
         return False
+
 
 @router.get("/fall-alert/dashboard")
 async def get_fall_alert_for_dashboard(
