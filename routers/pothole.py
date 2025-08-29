@@ -21,7 +21,7 @@ model = YOLO("lane_seg_best.pt")
 model.fuse()
 
 # 스트리밍 URL
-STREAM_URL = "https://bathroom-parcel-axis-robertson.trycloudflare.com/?action=stream"
+STREAM_URL = "https://pursuit-booty-cute-ambien.trycloudflare.com/?action=stream"
 
 # 프레임 큐
 frame_queue = queue.Queue(maxsize=1)
