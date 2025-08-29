@@ -14,7 +14,7 @@ class DashboardResponse(BaseModel):
     action: str  # "turned_off" 또는 "not_turned_off"
 
 WINDOW_SECONDS = 20
-FALL_THRESH = 10
+FALL_THRESH = 15
 
 async def check_fall_detection(user_id: str, walker_id: str, db: AsyncSession):
     """낙상 감지 체크 함수"""
@@ -34,8 +34,8 @@ async def check_fall_detection(user_id: str, walker_id: str, db: AsyncSession):
         if cnt >= FALL_THRESH:
             alert = FallAlert(
                 user_id=user_id, walker_id=walker_id,
-                timestamp=now, resolved=False,
-                dashboard_response=None, response_timestamp=None
+                timestamp=now, resolved=True,  # False → True로 변경
+                dashboard_response="turned_off", response_timestamp=now  # 자동으로 응답 처리
             )
             db.add(alert)
             await db.flush()  # alert.id 확보
