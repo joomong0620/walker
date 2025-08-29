@@ -26,7 +26,7 @@ model = YOLO("obsUpper.pt")
 model.fuse()
 
 # 스트리밍 URL
-STREAM_URL = "https://madonna-britney-desktops-benchmark.trycloudflare.com/?action=stream"
+STREAM_URL = "https://instructor-inflation-agency-induced.trycloudflare.com/?action=stream"
 
 # 프레임 큐 (최신 프레임 하나만 유지)
 frame_queue = queue.Queue(maxsize=1)
