@@ -6,6 +6,9 @@ from database import get_db, async_session
 from model.models import ObstacleData
 from ultralytics import YOLO
 from datetime import datetime
+from fastapi.responses import FileResponse
+from fastapi import HTTPException
+import os
 import uuid
 import cv2
 import asyncio
@@ -372,3 +375,25 @@ async def get_detection_status():
         "queue_size": frame_queue.qsize()
     }
     return status
+
+@router.get("/obstacle/image/{obstacle_id}")
+async def get_obstacle_image(obstacle_id: str):
+    """저장된 장애물 이미지를 반환"""
+    try:
+        # 업로드된 이미지 경로 확인
+        upload_path = os.path.join(SAVE_DIR_UPLOAD, f"{obstacle_id}.jpg")
+        
+        if os.path.exists(upload_path):
+            return FileResponse(upload_path, media_type="image/jpeg")
+        
+        # 스트림 이미지 경로 확인
+        stream_path = os.path.join(SAVE_DIR_STREAM, f"{obstacle_id}.jpg")
+        
+        if os.path.exists(stream_path):
+            return FileResponse(stream_path, media_type="image/jpeg")
+        
+        raise HTTPException(status_code=404, detail="Image not found")
+        
+    except Exception as e:
+        logger.error(f"Image fetch failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
