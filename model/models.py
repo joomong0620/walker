@@ -63,9 +63,10 @@ class ObstacleData(Base):
     obstacle_type = Column(String(100))
     detection_time = Column(TIMESTAMP)
     walker_id = Column(String(100))
-
-    is_detected = Column(Integer)  # ✅ 이 줄이 반드시 있어야 해!
-
+    is_detected = Column(Integer)  # 1(감지됨), 0(감지 안됨)
+    alert_level = Column(String(20), nullable=True)  
+    risk_score = Column(Float, nullable=True)
+    
  
 
 # 활동 로그 테이블
@@ -107,10 +108,7 @@ class AccelerometerData(Base):
     pitch = Column(Float)
     slope = Column(String(20))
     timestamp = Column(TIMESTAMP, default=func.now())
-    # 🚨 새로 추가
-    alert_level = Column(String(20), nullable=True)  
-    risk_score = Column(Float, nullable=True)
-    
+
 # ActivityDuration 테이블
 class ActivityDuration(Base):
     __tablename__ = "activity_duration"
