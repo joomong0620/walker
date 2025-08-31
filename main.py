@@ -279,6 +279,11 @@ app.include_router(report_router, prefix="/api", tags=["report"])
 app.include_router(fall_alert_router, prefix="/api", tags=["fall_alert"])
 #app.include_router(pothole_router, prefix="/api", tags=["upload"])
 from fastapi.staticfiles import StaticFiles
+# 이미지 저장용 디렉토리 생성
+os.makedirs("runs/obstacles/upload", exist_ok=True)
+os.makedirs("runs/obstacles/stream", exist_ok=True)
+
+# 정적 파일 서빙 설정
 app.mount("/static", StaticFiles(directory="runs"), name="static")
 # FastAPI 앱 실행
 if __name__ == "__main__":
