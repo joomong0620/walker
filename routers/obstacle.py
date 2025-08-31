@@ -42,6 +42,65 @@ detection_task = None
 SAVE_DIR_STREAM = "runs/obstacles/stream"
 SAVE_DIR_UPLOAD = "runs/obstacles/upload"
 
+# 위험도 설정
+RISK_LEVELS = {
+    'car': 0.9, 'truck': 0.95, 'bus': 0.9, 'motorcycle': 0.7,
+    'bicycle': 0.5, 'person': 0.3,
+    'traffic light': 0.1, 'stop sign': 0.5,
+    'pothole': 0.6, 'barrier': 0.4
+}
+
+# 알림 매니저
+class AlertManager:
+    def __init__(self):
+        self.last_alert_time = {}
+        self.alert_cooldown = 2  # 2초 쿨다운
+        
+    def should_alert(self, alert_type, current_time):
+        last_time = self.last_alert_time.get(alert_type, 0)
+        if current_time - last_time > self.alert_cooldown:
+            self.last_alert_time[alert_type] = current_time
+            return True
+        return False
+
+alert_manager = AlertManager()
+
+def calculate_alert_level(labels, confidences, boxes):
+    """라벨, 신뢰도, 박스 크기를 종합해서 알림 레벨 계산"""
+    if not labels:
+        return "NORMAL", 0.0
+    
+    max_risk = 0.0
+    alert_level = "NORMAL"
+    
+    for i, label in enumerate(labels):
+        conf = confidences[i]
+        box = boxes[i]
+        
+        # 객체별 기본 위험도
+        base_risk = RISK_LEVELS.get(label, 0.5)
+        
+        # 박스 크기로 거리 추정 (큰 박스 = 가까운 거리 = 더 위험)
+        box_area = (box['x2'] - box['x1']) * (box['y2'] - box['y1'])
+        size_multiplier = 1.0
+        if box_area > 100000:  # 매우 큰 객체
+            size_multiplier = 1.5
+        elif box_area > 50000:  # 큰 객체
+            size_multiplier = 1.2
+        
+        # 최종 위험도 계산
+        risk_score = base_risk * conf * size_multiplier
+        max_risk = max(max_risk, risk_score)
+    
+    # 알림 레벨 결정
+    if max_risk > 0.8:
+        alert_level = "STOP"
+    elif max_risk > 0.6:
+        alert_level = "SLOW"
+    elif max_risk > 0.4:
+        alert_level = "CAUTION"
+    
+    return alert_level, max_risk
 
 def draw_boxes(frame, boxes, labels):
     """프레임 위에 바운딩 박스와 라벨을 그림(저장 안 함). np.ndarray 반환."""
@@ -144,10 +203,27 @@ async def detect_from_queue(user_id: str, walker_id: str):
             logger.info(f"Detected (>=0.6): {is_detected}")
 
             labels = []
+            confidences = []
+            bbox_list = []
+            
             for box in high_conf_boxes:
                 class_id = int(box.cls[0])
                 label = model.names[class_id]
+                conf = float(box.conf[0])
+                x1, y1, x2, y2 = box.xyxy[0].tolist()
+                
                 labels.append(label)
+                confidences.append(conf)
+                bbox_list.append({"x1": int(x1), "y1": int(y1), "x2": int(x2), "y2": int(y2)})
+
+            # 알림 레벨 계산
+            alert_level, risk_score = calculate_alert_level(labels, confidences, bbox_list)
+            
+            # 쿨다운 체크
+            current_time = asyncio.get_event_loop().time()
+            should_trigger_alert = alert_manager.should_alert(alert_level, current_time)
+            
+            logger.info(f"Alert level: {alert_level}, Risk: {risk_score:.2f}, Should alert: {should_trigger_alert}")
 
             label_str = str(labels) if labels else "[]"
             detection_time = datetime.utcnow()
@@ -249,18 +325,25 @@ async def upload_obstacle_image(
         high_conf_boxes = [box for box in boxes if box.conf[0] >= 0.7]
 
         bbox_list = []
+        labels = []
+        confidences = []
+        
         for box in high_conf_boxes:
             x1, y1, x2, y2 = box.xyxy[0].tolist()
+            class_id = int(box.cls[0])
+            label = model.names[class_id]
+            conf = float(box.conf[0])
+            
             bbox_list.append({"x1": int(x1), "y1": int(y1), "x2": int(x2), "y2": int(y2)})
+            labels.append(label)
+            confidences.append(conf)
 
         is_detected = 1 if len(high_conf_boxes) > 0 else 0
         logger.info(f"(upload) detected(>=0.7): {is_detected}")
 
-        labels = []
-        for box in high_conf_boxes:
-            class_id = int(box.cls[0])
-            label = model.names[class_id]
-            labels.append(label)
+        # 알림 레벨과 위험도 계산
+        alert_level, risk_score = calculate_alert_level(labels, confidences, bbox_list)
+        max_confidence = max(confidences) if confidences else 0.0
 
         label_str = str(labels) if labels else "[]"
         detection_time = datetime.utcnow()
@@ -286,8 +369,11 @@ async def upload_obstacle_image(
             obstacle_type=label_str,
             detection_time=detection_time,
             walker_id=walker_id,
-            is_detected=is_detected
+            is_detected=is_detected,
+            alert_level=alert_level,      # 추가
+            risk_score=risk_score         # 추가
         )
+
         db.add(obstacle)
         await db.commit()
         await db.refresh(obstacle)
@@ -295,10 +381,20 @@ async def upload_obstacle_image(
         return {
             "message": "Processed upload image.",
             "is_detected": is_detected,
+            "alert_level": alert_level,
+            "risk_score": round(risk_score, 3),
+            "max_confidence": round(max_confidence, 3),
+            "object_count": len(high_conf_boxes),
             "obstacle_id": obstacle_id,
             "labels": labels,
             "boxes": bbox_list,
-            "saved_image_path": saved_image_path
+            "saved_image_path": saved_image_path,
+            "recommended_action": {
+                "STOP": "즉시 정지 - 위험한 차량 감지",
+                "SLOW": "속도 감소 - 주의 필요",
+                "CAUTION": "주의 - 장애물 감지됨",
+                "NORMAL": "정상 - 안전함"
+            }.get(alert_level, "정상")
         }
     except Exception as e:
         logger.error(f"Upload processing failed: {e}")
@@ -397,3 +493,28 @@ async def get_obstacle_image(obstacle_id: str):
     except Exception as e:
         logger.error(f"Image fetch failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/obstacle/sensitivity/adjust")
+async def adjust_sensitivity(
+    sensitivity: str = Query(..., regex="^(low|medium|high)$"),
+    user_id: str = Query(...),
+    walker_id: str = Query(...)
+):
+    """사용자별 민감도 조절"""
+    sensitivity_map = {
+        "low": {"conf_threshold": 0.8, "risk_threshold": 0.7},
+        "medium": {"conf_threshold": 0.7, "risk_threshold": 0.6}, 
+        "high": {"conf_threshold": 0.6, "risk_threshold": 0.4}
+    }
+    
+    settings = sensitivity_map[sensitivity]
+    
+    # 실제로는 이 설정을 DB나 캐시에 저장해야 함
+    logger.info(f"Sensitivity adjusted for {user_id}: {sensitivity}")
+    
+    return {
+        "message": f"Sensitivity set to {sensitivity}",
+        "settings": settings,
+        "user_id": user_id,
+        "walker_id": walker_id
+    }

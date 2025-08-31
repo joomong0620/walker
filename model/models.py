@@ -107,7 +107,10 @@ class AccelerometerData(Base):
     pitch = Column(Float)
     slope = Column(String(20))
     timestamp = Column(TIMESTAMP, default=func.now())
-
+    # 🚨 새로 추가
+    alert_level = Column(String(20), nullable=True)  
+    risk_score = Column(Float, nullable=True)
+    
 # ActivityDuration 테이블
 class ActivityDuration(Base):
     __tablename__ = "activity_duration"
