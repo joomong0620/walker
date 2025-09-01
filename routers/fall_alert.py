@@ -16,6 +16,7 @@ class DashboardResponse(BaseModel):
 WINDOW_SECONDS = 20   # 최근 몇 초 범위
 FALL_THRESH = 10      # 낙상 감지 기준 횟수
 
+
 # ------------------ 낙상 감지 ------------------
 async def check_fall_detection(user_id: str, walker_id: str, db: AsyncSession):
     """낙상 감지 체크 함수"""
@@ -33,6 +34,21 @@ async def check_fall_detection(user_id: str, walker_id: str, db: AsyncSession):
         )).scalar_one()
 
         if cnt >= FALL_THRESH:
+            # 같은 user_id, walker_id에 대해 미해결 알림이 이미 있으면 새로 만들지 않음
+            existing_alert = (await db.execute(
+                select(FallAlert)
+                .where(FallAlert.user_id == user_id)
+                .where(FallAlert.walker_id == walker_id)
+                .where(FallAlert.resolved == False)
+                .order_by(desc(FallAlert.timestamp))
+                .limit(1)
+            )).scalar_one_or_none()
+
+            if existing_alert:
+                logging.info(f"⚠️ 이미 미해결 알림이 존재: alert_id={existing_alert.id}")
+                return False
+
+            # 새 알림 생성
             alert = FallAlert(
                 user_id=user_id, walker_id=walker_id,
                 timestamp=now, resolved=False,
@@ -48,6 +64,7 @@ async def check_fall_detection(user_id: str, walker_id: str, db: AsyncSession):
     except Exception as e:
         logging.error(f"Fall detection check error: {e}")
         return False
+
 
 
 # ------------------ 대시보드 폴링 ------------------
