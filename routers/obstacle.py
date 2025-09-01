@@ -297,6 +297,8 @@ async def get_latest_obstacle_data(
                 "obstacle_type": latest_data.obstacle_type,
                 "detection_time": latest_data.detection_time.isoformat(),
                 "is_detected": latest_data.is_detected,
+                "alert_level": latest_data.alert_level,  # 수정: data -> latest_data
+                "risk_score": latest_data.risk_score,    # 추가: risk_score도 포함
             }
         else:
             return {"message": "No data."}
