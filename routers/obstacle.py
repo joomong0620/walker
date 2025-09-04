@@ -406,31 +406,25 @@ async def upload_obstacle_image(
 
 @router.get("/obstacle/stream/preview")
 async def stream_preview():
-    """frame_queue의 최신 프레임을 YOLO로 감지 후 바운딩 박스 그려 실시간 스트리밍"""
     async def frame_generator():
         while True:
             if not frame_queue.empty():
-                # 최신 프레임 가져오기
-                frame = frame_queue.queue[-1]  
+                frame = frame_queue.queue[-1]
 
-                # YOLO 감지
                 results = model.predict(frame, conf=0.3, imgsz=224, device="cpu", stream=False)
                 boxes = [box for box in results[0].boxes if box.conf[0] >= 0.6]
                 labels = [model.names[int(box.cls[0])] for box in boxes]
 
-                # 바운딩 박스 그리기
                 annotated = draw_boxes(frame, boxes, labels)
 
-                # JPEG 인코딩
                 ok, buffer = cv2.imencode(".jpg", annotated)
                 if ok:
                     yield (b"--frame\r\n"
                            b"Content-Type: image/jpeg\r\n\r\n" +
                            buffer.tobytes() +
-                           b"\r\n")
+                           b"\r\n\r\n")
 
-            await asyncio.sleep(0.2)  # 초당 약 5fps
-
+            await asyncio.sleep(0.1)  # fps 약 10
     return StreamingResponse(frame_generator(),
                              media_type="multipart/x-mixed-replace; boundary=frame")
 
