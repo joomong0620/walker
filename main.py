@@ -45,9 +45,22 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5174",              # 로컬 개발용
+        "http://localhost:5173",              
+        "http://localhost:5172",             
+        "http://localhost:5171",
+                                   
         "http://127.0.0.1:5174",  
+        "http://127.0.0.1:5173",  
+        "http://127.0.0.1:5172",  
+        "http://127.0.0.1:5171",  
+
         "https://helping-chair.vercel.app",   
+        
         "http://192.168.0.159:5174", 
+        "http://192.168.0.159:5173", 
+        "http://192.168.0.159:5172", 
+        "http://192.168.0.159:5171", 
+        
         "https://6909-14-42-86-124.ngrok-free.app",
         "http://192.168.0.142"            # 로컬 개발용
     ],

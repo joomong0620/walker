@@ -58,7 +58,6 @@ async def receive_from_hardware(
     values = [e.accel_value for e in recent_entries[:7]]
     values.reverse()
     values.append(accel_value)
-
     is_moving = 0
 
     # 1) 하드 임계로 빠른 판정 - 연속 2개 이상 체크
