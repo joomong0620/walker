@@ -40,6 +40,31 @@ SAVE_DIR_STREAM = "runs/cracks/stream"
 SAVE_DIR_UPLOAD = "runs/cracks/upload"
 
 
+# ================== 이미지 저장 유틸 ==================
+def draw_boxes(frame, boxes, labels):
+    annotated = frame.copy()
+    for i, box in enumerate(boxes):
+        x1, y1, x2, y2 = box.xyxy[0].tolist()
+        conf = float(box.conf[0])
+        pt1 = (int(x1), int(y1))
+        pt2 = (int(x2), int(y2))
+        cv2.rectangle(annotated, pt1, pt2, (0, 255, 0), 2)
+        label_text = labels[i] if i < len(labels) else "obj"
+        text = f"{label_text} {conf:.2f}"
+        cv2.putText(
+            annotated, text, (pt1[0], max(0, pt1[1] - 8)),
+            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2, cv2.LINE_AA
+        )
+    return annotated
+
+def draw_and_save(frame, boxes, labels, save_dir, filename_prefix):
+    os.makedirs(save_dir, exist_ok=True)
+    annotated = draw_boxes(frame, boxes, labels)
+    out_path = os.path.join(save_dir, f"{filename_prefix}.jpg")
+    cv2.imwrite(out_path, annotated)
+    return out_path
+
+
 # ================== FrameGrabber ==================
 class FrameGrabber(threading.Thread):
     def __init__(self, stream_url):
@@ -109,21 +134,37 @@ async def detect_from_queue(user_id: str, walker_id: str, db_session_maker):
         logger.info(f"YOLO 추론 시간: {asyncio.get_event_loop().time() - t0:.3f}s")
 
         labels_all = []
+        high_conf_boxes = []
         is_detected = 0
         for result in results:
             boxes = result.boxes
             if boxes is not None:
-                confs = boxes.conf.cpu().numpy()
-                classes = boxes.cls.cpu().numpy()
-                for conf, cls in zip(confs, classes):
-                    label = model.names[int(cls)]
-                    labels_all.append(label)
+                for box in boxes:
+                    conf = float(box.conf[0])
+                    cls = int(box.cls[0])
+                    label = model.names[cls]
                     if conf >= 0.5:
                         is_detected = 1
+                        high_conf_boxes.append(box)
+                    labels_all.append(label)
 
         label_str = str(labels_all) if labels_all else "[]"
         detection_time = datetime.utcnow()
         crack_id = f"stream_{uuid.uuid4()}"
+
+        # ✅ 감지된 경우 이미지 저장
+        if is_detected == 1:
+            try:
+                saved_image_path = draw_and_save(
+                    frame=frame,
+                    boxes=high_conf_boxes,
+                    labels=labels_all,
+                    save_dir=SAVE_DIR_STREAM,
+                    filename_prefix=crack_id
+                )
+                logger.info(f"스트리밍 이미지 저장 완료: {saved_image_path}")
+            except Exception as e:
+                logger.error(f"스트리밍 이미지 저장 실패: {e}")
 
         async with db_session_maker() as session:
             await save_to_db_safe(
@@ -157,24 +198,37 @@ async def upload_image(
             return {"error": "이미지를 읽을 수 없음"}
 
         results = model.predict(frame, conf=0.3, imgsz=224, device="cpu", stream=False)
-        labels_all = []
+        labels_all, high_conf_boxes = [], []
         is_detected = 0
 
         for result in results:
             boxes = result.boxes
             if boxes is not None:
-                confs = boxes.conf.cpu().numpy()
-                classes = boxes.cls.cpu().numpy()
-                for conf, cls in zip(confs, classes):
-                    label = model.names[int(cls)]
-                    labels_all.append(label)
+                for box in boxes:
+                    conf = float(box.conf[0])
+                    cls = int(box.cls[0])
+                    label = model.names[cls]
                     if conf >= 0.5:
                         is_detected = 1
+                        high_conf_boxes.append(box)
+                    labels_all.append(label)
 
         label_str = str(labels_all) if labels_all else "[]"
         crack_id = f"upload_{uuid.uuid4()}"
         detection_time = datetime.utcnow()
 
+        # ✅ 이미지 저장 (감지된 경우에만)
+        saved_image_path = None
+        if is_detected == 1:
+            saved_image_path = draw_and_save(
+                frame=frame,
+                boxes=high_conf_boxes,
+                labels=labels_all,
+                save_dir=SAVE_DIR_UPLOAD,
+                filename_prefix=crack_id
+            )
+
+        # ✅ DB 저장
         success = await save_to_db_safe(
             session=db,
             crack_id=crack_id,
@@ -190,11 +244,31 @@ async def upload_image(
             "is_detected": is_detected,
             "labels": labels_all,
             "crack_id": crack_id,
+            "saved_image_path": saved_image_path,
             "saved": success
         }
     except Exception as e:
         logger.error(f"Upload 처리 실패: {e}")
         return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+# ================== 저장된 이미지 반환 API ==================
+@router.get("/pothole/image/{crack_id}")
+async def get_crack_image(crack_id: str):
+    """저장된 균열 이미지를 반환"""
+    try:
+        upload_path = os.path.join(SAVE_DIR_UPLOAD, f"{crack_id}.jpg")
+        if os.path.exists(upload_path):
+            return FileResponse(upload_path, media_type="image/jpeg")
+
+        stream_path = os.path.join(SAVE_DIR_STREAM, f"{crack_id}.jpg")
+        if os.path.exists(stream_path):
+            return FileResponse(stream_path, media_type="image/jpeg")
+
+        raise HTTPException(status_code=404, detail="이미지를 찾을 수 없습니다.")
+    except Exception as e:
+        logger.error(f"이미지 반환 실패: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ================== 스트리밍 시작 ==================
