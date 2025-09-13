@@ -41,11 +41,19 @@ SAVE_DIR_UPLOAD = "runs/cracks/upload"
 
 
 # ================== 이미지 저장 유틸 ==================
+# 클래스별 색상 (BGR)
+CLASS_COLORS = {
+    "traffic_lane": (255, 0, 0),   # 파랑
+    "crosswalk": (255, 0, 255),    # 분홍
+    "pothole": (0, 0, 255),        # 빨강
+    "crack": (0, 255, 255),        # 노랑
+    "default": (0, 255, 0)         # 초록 (기본)
+}
+
 def draw_with_polygons(frame, result):
-    """YOLO 결과를 바운딩박스 + 폴리곤 라인으로 그린 프레임 반환"""
     annotated = frame.copy()
 
-    # 1. 바운딩 박스
+    # 1. 바운딩박스 + 라벨
     for box in result.boxes:
         x1, y1, x2, y2 = box.xyxy[0].tolist()
         conf = float(box.conf[0])
@@ -57,16 +65,24 @@ def draw_with_polygons(frame, result):
         cv2.putText(
             annotated, f"{label} {conf:.2f}",
             (pt1[0], max(0, pt1[1] - 8)),
-            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2, cv2.LINE_AA
+            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2, cv2.LINE_AA
         )
 
     # 2. 세그멘테이션 폴리곤
     if result.masks is not None:
-        for seg in result.masks.xy:
+        for seg, cls_id in zip(result.masks.xy, result.boxes.cls):
+            label = model.names[int(cls_id)]
+            color = CLASS_COLORS.get(label, CLASS_COLORS["default"])
+
             pts = np.array(seg, dtype=np.int32)
-            cv2.polylines(annotated, [pts], isClosed=True, color=(0, 0, 255), thickness=2)
-            # 내부 채우려면 아래 사용:
-            # cv2.fillPoly(annotated, [pts], color=(0, 0, 255))
+
+            # 반투명 채우기
+            overlay = annotated.copy()
+            cv2.fillPoly(overlay, [pts], color=color)
+            cv2.addWeighted(overlay, 0.4, annotated, 0.6, 0, annotated)
+
+            # 윤곽선
+            cv2.polylines(annotated, [pts], isClosed=True, color=color, thickness=2)
 
     return annotated
 
