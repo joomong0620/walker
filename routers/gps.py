@@ -11,13 +11,13 @@ from database import get_db
 
 router = APIRouter()
 
-# ✅ Pydantic 모델
+#  Pydantic 모델
 class GPSDataCreate(BaseModel):
     latitude: float = Field(..., ge=-90, le=90)
     longitude: float = Field(..., ge=-180, le=180)
     timestamp: datetime
 
-# ✅ GPS 데이터 저장
+#  GPS 데이터 저장
 @router.post("/gps/{user_id}")
 async def create_gps_entry(user_id: str, data: GPSDataCreate, db: AsyncSession = Depends(get_db)):
     try:

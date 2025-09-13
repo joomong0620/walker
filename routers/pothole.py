@@ -1,5 +1,5 @@
-from fastapi import FastAPI, UploadFile, File, Depends, Query, APIRouter
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, UploadFile, File, Depends, Query, APIRouter, HTTPException
+from fastapi.responses import JSONResponse, StreamingResponse, FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 from database import get_db, async_session
@@ -12,6 +12,11 @@ import cv2
 import asyncio
 import threading
 import queue
+import os
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI()
 router = APIRouter()
@@ -26,7 +31,16 @@ STREAM_URL = "https://bear-hampton-hc-sound.trycloudflare.com/?action=stream"
 # 프레임 큐
 frame_queue = queue.Queue(maxsize=1)
 
-# 프레임 캡쳐 스레드
+# 실행 컨트롤
+frame_grabber = None
+detection_task = None
+
+# 저장 경로
+SAVE_DIR_STREAM = "runs/cracks/stream"
+SAVE_DIR_UPLOAD = "runs/cracks/upload"
+
+
+# ================== FrameGrabber ==================
 class FrameGrabber(threading.Thread):
     def __init__(self, stream_url):
         super().__init__()
@@ -37,10 +51,9 @@ class FrameGrabber(threading.Thread):
 
     def run(self):
         if not self.cap.isOpened():
-            print("❌ 카메라 열기 실패")
+            logger.error("❌ 카메라 열기 실패")
             return
-
-        print("📸 FrameGrabber 시작됨")
+        logger.info("📸 FrameGrabber 시작됨")
         while self.running:
             ret, frame = self.cap.read()
             if not ret:
@@ -55,9 +68,10 @@ class FrameGrabber(threading.Thread):
     def stop(self):
         self.running = False
         self.cap.release()
-        print("🛑 FrameGrabber 종료됨")
+        logger.info("🛑 FrameGrabber 종료됨")
 
-# ✅ DB 저장 함수
+
+# ================== DB 저장 함수 ==================
 async def save_to_db_safe(session, crack_id, user_id, crack_type, detection_time, walker_id, is_detected):
     try:
         crack = CrackData(
@@ -70,32 +84,32 @@ async def save_to_db_safe(session, crack_id, user_id, crack_type, detection_time
         )
         session.add(crack)
         await session.commit()
+        logger.info(f"✅ DB 저장 성공: {crack_id}")
+        return True
     except Exception as e:
         await session.rollback()
-        print(f"❌ DB 저장 실패: {e}")
+        logger.error(f"❌ DB 저장 실패: {e}")
+        return False
 
-# ✅ 실시간 감지 루프
+
+# ================== 감지 루프 ==================
 async def detect_from_queue(user_id: str, walker_id: str, db_session_maker):
-    print("🧠 감지 루프 시작됨")
-
+    logger.info("🧠 감지 루프 시작됨")
     while True:
         start_time = asyncio.get_event_loop().time()
-
         try:
             frame = frame_queue.get(timeout=5)
         except queue.Empty:
-            print("⏳ 프레임 없음")
+            logger.warning("⏳ 프레임 없음")
             await asyncio.sleep(0.1)
             continue
 
-        detect_start = asyncio.get_event_loop().time()
+        t0 = asyncio.get_event_loop().time()
         results = model.predict(frame, conf=0.3, imgsz=224, device="cpu", stream=False)
-        detect_elapsed = asyncio.get_event_loop().time() - detect_start
-        print(f"🧠 YOLO 추론 시간: {detect_elapsed:.3f}s")
+        logger.info(f"YOLO 추론 시간: {asyncio.get_event_loop().time() - t0:.3f}s")
 
         labels_all = []
         is_detected = 0
-
         for result in results:
             boxes = result.boxes
             if boxes is not None:
@@ -108,12 +122,9 @@ async def detect_from_queue(user_id: str, walker_id: str, db_session_maker):
                         is_detected = 1
 
         label_str = str(labels_all) if labels_all else "[]"
-        print(f"🚨 감지 결과: is_detected={is_detected}, labels={label_str}")
-
         detection_time = datetime.utcnow()
-        crack_id = f"crack_{uuid.uuid4()}"
+        crack_id = f"stream_{uuid.uuid4()}"
 
-        db_start = asyncio.get_event_loop().time()
         async with db_session_maker() as session:
             await save_to_db_safe(
                 session,
@@ -124,18 +135,13 @@ async def detect_from_queue(user_id: str, walker_id: str, db_session_maker):
                 walker_id,
                 is_detected
             )
-        db_elapsed = asyncio.get_event_loop().time() - db_start
 
-        if is_detected:
-            print(f"✅ DB 저장 성공 (0.5 이상 감지!) - 저장 시간: {db_elapsed:.3f}s")
-        else:
-            print(f"✅ DB 저장 성공 (0.5 미만) - 저장 시간: {db_elapsed:.3f}s")
-
+        logger.info(f"🚨 감지 결과: is_detected={is_detected}, labels={label_str}")
         total_elapsed = asyncio.get_event_loop().time() - start_time
-        print(f"🔁 전체 루프 시간: {total_elapsed:.3f}s")
         await asyncio.sleep(max(0, 1.0 - total_elapsed))
 
-# ✅ 이미지 업로드 감지 API
+
+# ================== 업로드 감지 API ==================
 @router.post("/pothole/upload")
 async def upload_image(
     file: UploadFile = File(...),
@@ -147,9 +153,10 @@ async def upload_image(
         image_bytes = await file.read()
         np_arr = np.frombuffer(image_bytes, np.uint8)
         frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+        if frame is None:
+            return {"error": "이미지를 읽을 수 없음"}
 
         results = model.predict(frame, conf=0.3, imgsz=224, device="cpu", stream=False)
-
         labels_all = []
         is_detected = 0
 
@@ -165,12 +172,10 @@ async def upload_image(
                         is_detected = 1
 
         label_str = str(labels_all) if labels_all else "[]"
-        print(f"🚨 감지 결과: is_detected={is_detected}, labels={label_str}")
-
-        crack_id = f"crack_{uuid.uuid4()}"
+        crack_id = f"upload_{uuid.uuid4()}"
         detection_time = datetime.utcnow()
 
-        await save_to_db_safe(
+        success = await save_to_db_safe(
             session=db,
             crack_id=crack_id,
             user_id=user_id,
@@ -180,27 +185,82 @@ async def upload_image(
             is_detected=is_detected
         )
 
-        return {"message": "이미지 처리 완료", "is_detected": is_detected}
-
+        return {
+            "message": "이미지 처리 완료",
+            "is_detected": is_detected,
+            "labels": labels_all,
+            "crack_id": crack_id,
+            "saved": success
+        }
     except Exception as e:
+        logger.error(f"Upload 처리 실패: {e}")
         return JSONResponse(status_code=500, content={"error": str(e)})
 
-# ✅ 실시간 감지 시작 API
+
+# ================== 스트리밍 시작 ==================
 @router.post("/pothole/stream/start")
 async def start_detection(
     user_id: str = Query(...),
     walker_id: str = Query(...),
     db: AsyncSession = Depends(get_db)
 ):
-    global frame_grabber
-    frame_grabber = FrameGrabber(STREAM_URL)
-    frame_grabber.start()
+    global frame_grabber, detection_task
+    try:
+        if frame_grabber and frame_grabber.is_alive():
+            frame_grabber.stop()
+            frame_grabber.join(timeout=2)
+        if detection_task and not detection_task.done():
+            detection_task.cancel()
 
-    asyncio.create_task(detect_from_queue(user_id, walker_id, async_session))
-    return {"message": "스트리밍 감지를 시작했습니다."}
+        frame_grabber = FrameGrabber(STREAM_URL)
+        frame_grabber.start()
 
-# ✅ 최신 감지 결과 API
-@app.get("/pothole/latest")
+        detection_task = asyncio.create_task(detect_from_queue(user_id, walker_id, async_session))
+        logger.info(f"스트리밍 감지 시작됨: user_id={user_id}, walker_id={walker_id}")
+        return {"message": "스트리밍 감지를 시작했습니다."}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+# ================== 스트리밍 종료 ==================
+@router.post("/pothole/stream/stop")
+async def stop_detection():
+    global frame_grabber, detection_task
+    stopped = []
+    try:
+        if frame_grabber and frame_grabber.is_alive():
+            frame_grabber.stop()
+            frame_grabber.join(timeout=5)
+            stopped.append("frame_grabber")
+
+        if detection_task and not detection_task.done():
+            detection_task.cancel()
+            try:
+                await detection_task
+            except asyncio.CancelledError:
+                pass
+            stopped.append("detection_task")
+
+        if stopped:
+            return {"message": f"중지됨: {stopped}"}
+        else:
+            return {"message": "실행 중이 아님"}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+# ================== 상태 확인 ==================
+@router.get("/pothole/status")
+async def get_detection_status():
+    global frame_grabber, detection_task
+    return {
+        "frame_grabber_running": frame_grabber is not None and frame_grabber.is_alive(),
+        "detection_task_running": detection_task is not None and not detection_task.done(),
+        "queue_size": frame_queue.qsize()
+    }
+
+
+# ================== 최신 데이터 ==================
 @router.get("/pothole/latest")
 async def get_latest_crack_data(
     user_id: str = Query(...),
@@ -215,7 +275,6 @@ async def get_latest_crack_data(
             .limit(1)
         )
         latest_data = result.scalar_one_or_none()
-
         if latest_data:
             return {
                 "crack_id": latest_data.crack_id,
@@ -230,5 +289,6 @@ async def get_latest_crack_data(
     except Exception as e:
         return {"error": str(e)}
 
-# ✅ 라우터 등록
+
+# ================== 라우터 등록 ==================
 app.include_router(router)
