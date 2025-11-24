@@ -19,7 +19,7 @@
 
 
 ### ⚙️개발 환경
-- **Language**: Python 3.10  
+- **Language**: Python 3.12  
 - **Backend Framework**: FastAPI  
 - **AI / Computer Vision**: YOLOv8, OpenCV  
 - **Database**: PostgreSQL  
@@ -48,6 +48,7 @@
 #### 서버 배포 - [상세 보기 - WIKI 이동](https://github.com/joomong0620/walker/wiki/%EC%84%9C%EB%B2%84-%EB%B0%B0%ED%8F%AC)
 - docker 컨테이너화
 - Railway 배포 및 호스팅
+
 
 
 
