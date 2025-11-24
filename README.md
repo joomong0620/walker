@@ -11,44 +11,41 @@
 
 
 ### 👩‍💻 멤버구성
-- 김주연(팀장) :
-- 이어진
-- 유예린
-- 김우주
-- Kosimov
+- 김주연(팀장, Backend) : 데이터베이스 설계, 데이터베이스 구축 및 연동, API 서버 구축 및 배포, AI 인식 시스템 개발
+- 이어진(HardWare) : 보행기 하드웨어 구성 및 회로 설계, 센서 데이터 처리 및 연동 구현, 하드웨어 기반 경고 시스템 구현, 프로토타입 제작 및 테스트 주도
+- 유예린(AI) : 장애물 인식 AI 모델 제작, 차선 및 횡단보도와 포트홀 인식 AI 모델 제작 
+- 김우주(Frontend) : 애플리케이션 디자인 및 제작, 서버 및 하드웨어 연동
+- Kosimov(Frontend) : 웹 대시보드 화면 구성 및 제작, 음성 알림 경고 제작  
 
 
 ### ⚙️개발 환경
-- 'Java: 17 (OpenJDK)'
-- 'JDK: 11.0.17_8'
-- **IDE** : STS 3.9
-- **Framework**: Spring Boot 3.5.5
-- **Database**: Oracle DB
-- **ORM**: MyBatis
+- **Language**: Python 3.10  
+- **Backend Framework**: FastAPI  
+- **AI / Computer Vision**: YOLOv8, OpenCV  
+- **Database**: PostgreSQL  
+- **ORM**: SQLAlchemy (Async)  
+- **Server / Infra**: Railway (CI/CD), Docker, Uvicorn (ASGI)  
+- **Streaming**: Real-time video processing (OpenCV + Queue)   
+
 
 ## 📌 주요 기능
-#### 자유게시판 - [상세 보기 - WIKI 이동]()
-- 게시글 목록 조회
-- 게시글 작성, 수정, 삭제, 조회 (CRUD)
-- 게시글 상세 페이지 내 좋아요, 댓글 작성 기능 지원
+#### DB 구축 - [상세 보기 - WIKI 이동]()
+- Postgree DB 구축
 
 
-#### 알림 - [상세 보기 - WIKI 이동]()
-- 좋아요·댓글 발생 시 실시간 알림 전송
-- 클릭 시 관련 게시글로 바로 이동
-- 읽음 여부 시각화 및 알림 개별 삭제 기능
+#### Python 웹 프레임워크를 사용한 API 서버 구축 - [상세 보기 - WIKI 이동]()
+- 활동시간, 심박수
+- 레포트 평균 데이터
+- 실시간 감지 API
 
   
-#### 마이페이지 - [상세 보기 - WIKI 이동]()
-- 프로필 이미지 및 닉네임 변경
-- 주소 API(Daum Postcode) 연동 후 DB 저장
-- 예매 내역 조회 및 페이지 이동
-- 예매 취소 및 상태 변경
-- 예매 내역 기반 리뷰 작성
+#### AI 위험 감지 및 경고 시스템 - [상세 보기 - WIKI 이동]()
+- YOLO 감지 로직
+- BASE RISK TABLE 위험도 계산 로직
+- 알림 레벨 (STOP/SLOW/CAUTION/NORMAL) 분류 로직
 
-#### 채팅 - [상세 보기 - WIKI 이동]()
-- 개인 및 팀 단위 채팅방 생성 (닉네임 검색)
-- 메시지 입력·전송 및 읽음 알림 표시
-- 팀 채팅 시 다수 인원 그룹 대화 지원
-- 채팅방 나가기, 메시지 기록 조회 기능
-- 사용자 프로필 이미지와 발신자 구분 UI 구현
+
+#### 서버 배포 - [상세 보기 - WIKI 이동]()
+- docker 컨테이너화
+- Railway 배포 및 호스팅
+
