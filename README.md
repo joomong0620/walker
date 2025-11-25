@@ -29,7 +29,7 @@
 
 
 ## 📌 주요 기능
-#### DB 구축 - [상세 보기 - WIKI 이동](https://github.com/joomong0620/walker/wiki/DB-%EA%B5%AC%EC%B6%95)
+#### DB 구축 - [상세 보기 - WIKI 이동](https://github.com/joomong0620/walker/wiki/%EC%A3%BC%EC%9A%94-%EA%B8%B0%EB%8A%A5-%EC%86%8C%EA%B0%9C(DB-%EA%B5%AC%EC%B6%95))
 - Postgree DB 구축
 
 
@@ -48,6 +48,7 @@
 #### 서버 배포 - [상세 보기 - WIKI 이동](https://github.com/joomong0620/walker/wiki/%EC%A3%BC%EC%9A%94-%EA%B8%B0%EB%8A%A5-%EC%86%8C%EA%B0%9C(%EC%84%9C%EB%B2%84-%EB%B0%B0%ED%8F%AC))
 - docker 컨테이너화
 - Railway 배포 및 호스팅
+
 
 
 
