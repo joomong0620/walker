@@ -16,11 +16,11 @@ Base = declarative_base()
 class GPSData(Base):
     __tablename__ = "gps_data"
     
-    id = Column(Integer, primary_key=True, autoincrement=True)  # ✅ 자동 증가
+    id = Column(Integer, primary_key=True, autoincrement=True)  #  자동 증가
     user_id = Column(String(100), ForeignKey("users.user_id"))  # users 테이블 참조
-    latitude = Column(Float, nullable=False)  # ✅ 위도
-    longitude = Column(Float, nullable=False)  # ✅ 경도
-    timestamp = Column(TIMESTAMP, default=func.now(), nullable=False)  # ✅ 타임스탬프 기본값
+    latitude = Column(Float, nullable=False) #  위도
+    longitude = Column(Float, nullable=False)  #  경도
+    timestamp = Column(TIMESTAMP, default=func.now(), nullable=False)  # 타임스탬프 기본값
 
 # 심박수 테이블
 class HeartRate(Base):
@@ -85,11 +85,11 @@ class CrackData(Base):
     __tablename__ = "crack"
 
     crack_id = Column(String(100), primary_key=True)  # UUID 기반 고유 ID
-    user_id = Column(String(100), ForeignKey("users.user_id"))  # ✅ 사용자 참조
-    crack_type = Column(String(100))  # ✅ 감지된 crack 종류 (클래스 이름)
-    detection_time = Column(TIMESTAMP, default=func.now())  # ✅ 감지 시간
-    walker_id = Column(String(100), ForeignKey("walkers.walker_id"))  # ✅ 워커 참조
-    is_detected = Column(Integer)  # ✅ 1(감지됨), 0(감지 안됨)
+    user_id = Column(String(100), ForeignKey("users.user_id"))  # 사용자 참조
+    crack_type = Column(String(100))  # 감지된 crack 종류 (클래스 이름)
+    detection_time = Column(TIMESTAMP, default=func.now())  # 감지 시간
+    walker_id = Column(String(100), ForeignKey("walkers.walker_id"))  #  워커 참조
+    is_detected = Column(Integer)  # 1(감지됨), 0(감지 안됨)
     
 # Accelerometer 데이터 테이블
 class AccelerometerData(Base):
@@ -131,4 +131,5 @@ class FallAlert(Base):
     resolved = Column(Boolean, default=False)
     resolved_at = Column(DateTime, nullable=True)
     dashboard_response = Column(String, nullable=True)  # "turned_off" / "not_turned_off"
+
     response_timestamp = Column(DateTime, nullable=True)
