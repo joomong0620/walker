@@ -78,10 +78,10 @@ async def websocket_test(websocket: WebSocket):
     try:
         while True:
             data = await websocket.receive_text()
-            print("📩 받은 메시지:", data)
+            print(" 받은 메시지:", data)
             await websocket.send_text(f"💬 서버가 받은 메시지: {data}")
     except WebSocketDisconnect:
-        print("❌ 연결 끊김")
+        print(" 연결 끊김")
 
 # 의존성: 데이터베이스 세션
 async def get_db() -> AsyncSession:
@@ -184,7 +184,7 @@ class GuardianCreate(BaseModel):
     name: str
     contact: str
     birth: str
-    user_id: str  # ✅ 보호자가 연결될 사용자 ID
+    user_id: str  # 보호자가 연결될 사용자 ID
 
     class Config:
         orm_mode = True
@@ -303,3 +303,4 @@ if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 9000))
     uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
+
