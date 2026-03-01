@@ -112,7 +112,7 @@ AI 추론 결과와 센서 데이터를 종합해
 - 위험 레벨에 따른 경고 신호 라즈베리파이와 연동
 - 반복 테스트를 통한 안정성 확보
 
-### 🚀 Server Deployment  - [상세 보기 - WIKI 이동](https://github.com/joomong0620/walker/wiki/%EC%A3%BC%EC%9A%94-%EA%B8%B0%EB%8A%A5-%EC%86%8C%EA%B0%9C(%EC%84%9C%EB%B2%84-%EB%B0%B0%ED%8F%AC))
+#### 🚀 Server Deployment  - [상세 보기 - WIKI 이동](https://github.com/joomong0620/walker/wiki/%EC%A3%BC%EC%9A%94-%EA%B8%B0%EB%8A%A5-%EC%86%8C%EA%B0%9C(%EC%84%9C%EB%B2%84-%EB%B0%B0%ED%8F%AC))
 - Docker 기반 컨테이너화
 - Railway 배포
 - 환경 변수 분리
@@ -138,6 +138,7 @@ https://www.youtube.com/watch?v=J1LDh6wHnDQ
 - 모델 성능만으로는 서비스가 완성되지 않는다.
 - 데이터 흐름 설계가 곧 시스템 안정성이다.
 - 예외 처리와 구조 설계가 실제 사용자 안전을 좌우한다.
+
 
 
 
