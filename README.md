@@ -36,7 +36,7 @@ AI 추론 결과와 센서 데이터를 종합해
 길벗이는 AI 결과를 서비스 구조 안에서 재해석하고,
 실시간 위험도 계산과 경고 시스템으로 연결하는 것을 목표로 설계되었습니다.
 
-
+----
 
 ### 👩‍💻 멤버구성
 
@@ -49,6 +49,9 @@ AI 추론 결과와 센서 데이터를 종합해
 | 팀원D     | 웹 대시보드 화면 구성 및 제작, 음성 알림 경고 시스템 구현                        |
 
 
+----
+
+
 ### ⚙️개발 환경
 - **Language**: Python 3.12  
 - **Backend Framework**: FastAPI  
@@ -56,6 +59,8 @@ AI 추론 결과와 센서 데이터를 종합해
 - **Database**: PostgreSQL    
 - **Server / Infra**: Railway, Docker, Uvicorn     
 
+
+----
 
 
 ## 👩‍💻 My Role (김주연 | Team Lead, Backend)
@@ -69,7 +74,7 @@ AI 추론 결과와 센서 데이터를 종합해
 - API 서버 구현 및 배포
 - AI 위험 계산 로직 설계
 
-### 🛠 Architecture & Backend Design
+### Architecture & Backend Design
 #### 1️⃣ 데이터베이스 설계 (PostgreSQL) - [상세 보기 - WIKI 이동](https://github.com/joomong0620/walker/wiki/%EC%A3%BC%EC%9A%94-%EA%B8%B0%EB%8A%A5-%EC%86%8C%EA%B0%9C(DB-%EA%B5%AC%EC%B6%95))
 - 설계 목표
 - AI 추론 결과 + 센서 데이터 통합 저장
@@ -138,6 +143,7 @@ https://www.youtube.com/watch?v=J1LDh6wHnDQ
 - 모델 성능만으로는 서비스가 완성되지 않는다.
 - 데이터 흐름 설계가 곧 시스템 안정성이다.
 - 예외 처리와 구조 설계가 실제 사용자 안전을 좌우한다.
+
 
 
 
